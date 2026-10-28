@@ -1,0 +1,31 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "build",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: build",
+			"detail": "vite build"
+		},
+		{
+			"type": "npm",
+			"script": "check:watch",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: check:watch",
+			"detail": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch"
+		},
+		{
+            "label": "Tauri dev",
+            "type": "shell",
+            "command": "npm run tauri dev",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+	]
+}

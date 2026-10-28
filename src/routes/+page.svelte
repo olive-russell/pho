@@ -15,11 +15,17 @@
   <h1>Welcome to Tauri + Svelte</h1>
 
   <div class="row">
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
+    <a href="https://ollive.net" target="_blank">
+      <img src="https://ollive.net/media/recipes2/255/images/main.avif" class="logo vite" alt="Vite Logo" />
     </a>
     <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
+      <img src="/pic.HEIC" class="logo tauri" alt="Tauri Logo" />
+    </a>
+    <a href="https://svelte.dev" target="_blank">
+      <img src="/recent2.jpg" class="logo svelte-kit" alt="SvelteKit Logo" />
+    </a>
+    <a href="https://svelte.dev" target="_blank">
+      <img src="/ar.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
     </a>
     <a href="https://svelte.dev" target="_blank">
       <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
