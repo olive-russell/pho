@@ -1,21 +1,3 @@
-<script>
-  import { invoke } from "@tauri-apps/api/core";
-
-  let name = $state("");
-  let greetMsg = $state("");
-
-  async function greet(event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
-  }
-
-  let overlayOpen = $state(false);
-  function toggleOverlay() {
-    overlayOpen = !overlayOpen;
-  }
-</script>
-
 <main>
   <div id="image-list" class="grid">
     {#each { length: 40 }, rank}
@@ -51,12 +33,16 @@
     </button>
   {/if}
 
-  <!-- <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p> -->
 </main>
+
+<script>
+  import { invoke } from "@tauri-apps/api/core";
+
+  let overlayOpen = $state(false);
+  function toggleOverlay() {
+    overlayOpen = !overlayOpen;
+  }
+</script>
 
 <style>
   :root {
