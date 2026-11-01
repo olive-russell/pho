@@ -1,48 +1,15 @@
-<main>
-  <div id="image-list" class="grid">
-    {#each { length: 40 }, rank}
-      <button class="image-tile" aria-label="Open image" onclick={toggleOverlay}>
-        <figure>
-          <img src="/pic.HEIC" alt="something" />
-          <figcaption>pic.HEIC</figcaption>
-        </figure>
-      </button>
-    {/each}
-  </div>
-  {#if overlayOpen}
-    <button class="overlay-blanket" onclick={toggleOverlay}>
-      <div class="overlay-content">
-        <div id="image-view">
-          <div id="image-large">
-            <img src="/pic.HEIC" alt="" />
-          </div>
-          <div id="image-navigation"></div>
-        </div>
-        <div>
-          <ul id="date-list">
-            <li>2026-04-03-2345</li>
-            <li>2026-04-03-2345</li>
-            <li>2026-04-03-2345</li>
-          </ul>
-          <form action="" id="decorate-form">
-            <input type="text" name="Title" placeholder="Title" id="" />
-            <input type="text" name="Title" placeholder="Tags" id="" />
-          </form>
-        </div>
-      </div>
-    </button>
-  {/if}
-
-</main>
-
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import Overlay from "$lib/overlay.svelte";
+  import ThumbnailGrid from "$lib/thumbnail-grid.svelte";
 
-  let overlayOpen = $state(false);
-  function toggleOverlay() {
-    overlayOpen = !overlayOpen;
-  }
+  let selectedImage = $state(null);
 </script>
+
+<main>
+  <ThumbnailGrid selectImage={(element) => selectedImage = element}/>
+  <Overlay selectedImage={selectedImage} onClose={() => selectedImage = null}/>
+</main>
 
 <style>
   :root {
@@ -67,57 +34,5 @@
     flex-direction: column;
     justify-content: center;
     text-align: center;
-  }
-
-  #image-list>button {
-    border: none;
-    padding: 0px;
-    margin: 1em;
-    width: 20%;
-    background-color: transparent;
-    cursor: pointer;
-  }
-  
-  #image-list>button>figure {
-    margin: 0px;
-  }
-  
-  #image-list>button>figure>img {
-    display: block;
-    border: 2px solid transparent;
-    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    width: 100%;
-    box-sizing: border-box;
-
-    padding: 0em;
-    will-change: filter;
-    transition: border 0.3s;
-  }
-
-  #image-list>button>figure>img:hover {
-    border-color: #396cd8;
-    transition: 0.1s;
-  }
-  
-  #image-list>button>figure>img:active {
-    border-color: #396cd8;
-    background-color: #e8e8e8;
-  }
-
-  #image-list>button>figure>figcaption {
-    margin-top: 0.5em;
-  }
-
-  .overlay-blanket {
-    position: fixed;
-    top: 10vh;
-    left: 10vw;
-    height: 80vh;
-    width: 80vw;
-    border: 1px solid #eeeeee;
-    background-color: white;
-    border-radius: 16px;
-    box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5);
   }
 </style>
