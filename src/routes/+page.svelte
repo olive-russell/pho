@@ -1,15 +1,41 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import { open } from "@tauri-apps/plugin-dialog";
   import Overlay from "$lib/overlay.svelte";
   import ThumbnailGrid from "$lib/thumbnail-grid.svelte";
   import "./+layout.css"
 
   let selected = $state(null);
+
+  async function openFolder() {
+    const path = await open({
+      directory: true,
+      multiple: false,
+      title: "Open folder"
+    });
+
+    if (!path) return;
+
+    await invoke("set_open_folder", { path });
+    await loadImages();
+  }
+
+  let images = $state([]);
+
+  async function loadImages() {
+    try {
+      images = await invoke("get_images");
+    } catch (error) {
+      console.error("Failed to load images:", error);
+    }
+  }
+
 </script>
 
 <main>
-  <ThumbnailGrid selectElement={(element) => selected = element}/>
+  <ThumbnailGrid selectElement={(element) => selected = element} images={images}/>
   <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling}/>
+  <button onclick={openFolder}>open folder</button>
 </main>
 
 <style>

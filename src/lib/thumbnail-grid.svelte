@@ -1,13 +1,14 @@
 <script>
-    let { selectElement } = $props();
+    import { convertFileSrc } from "@tauri-apps/api/core";
+    let { selectElement, images } = $props();
 </script>
 
 <section id="image-list" class="grid">
-    {#each { length: 40 }, rank}
+    {#each images as image}
         <button class="image-tile" aria-label="Open image" onclick={(event) => selectElement(event.currentTarget)}>
             <figure>
-                <img src="demo-pics/pic{rank.toString(10).padStart(2, '0')}.HEIC" alt="pic{rank.toString(10).padStart(2, '0')}.HEIC" />
-                <figcaption>pic{rank.toString(10).padStart(2, '0')}.HEIC</figcaption>
+                <img src="{convertFileSrc(image)}" alt="{image}" />
+                <figcaption>{image}</figcaption>
             </figure>
         </button>
     {/each}
