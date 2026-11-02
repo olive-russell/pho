@@ -2,13 +2,14 @@
   import { invoke } from "@tauri-apps/api/core";
   import Overlay from "$lib/overlay.svelte";
   import ThumbnailGrid from "$lib/thumbnail-grid.svelte";
+  import "./+layout.css"
 
-  let selectedImage = $state(null);
+  let selected = $state(null);
 </script>
 
 <main>
-  <ThumbnailGrid selectImage={(element) => selectedImage = element}/>
-  <Overlay selectedImage={selectedImage} onClose={() => selectedImage = null}/>
+  <ThumbnailGrid selectElement={(element) => selected = element}/>
+  <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling}/>
 </main>
 
 <style>
