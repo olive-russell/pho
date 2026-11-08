@@ -7,8 +7,8 @@
     {#each images as image}
         <button class="image-tile" aria-label="Open image" onclick={(event) => selectElement(event.currentTarget)}>
             <figure>
-                <img src="{convertFileSrc(image)}" alt="{image}" />
-                <figcaption>{image}</figcaption>
+                <img src="{convertFileSrc(image)}" alt="{image.split("/").pop()}" />
+                <figcaption>{image.split("/").pop()}</figcaption>
             </figure>
         </button>
     {/each}

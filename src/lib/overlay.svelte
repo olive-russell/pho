@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { event } from "@tauri-apps/api";
   import Tags from 'svelte-tags-input';
+  import { onMount } from "svelte";
   
   let { selected, onClose, onNext, onPrevious } = $props();
   
@@ -35,7 +36,7 @@
 
   // Configure title input
   // svelte-ignore state_referenced_locally
-  let title = $derived(selectedImage?.src.split("/").pop() ?? "");
+  let title = $derived(selectedImage?.alt.split("/").pop() ?? "");
   
   // Configure tag input
   let availableTags = $state(['one', 'two']);
@@ -60,6 +61,18 @@
       console.error("Failed to save annotation:", error);
     }
   }
+
+  async function loadAvailableTags() {
+    try {
+      availableTags = await invoke("load_photo_album_tags");
+    } catch (error) {
+      console.error("Failed to load existing tag list:", error);
+    }
+  }
+
+  onMount(() => {
+    loadAvailableTags();
+  });
 </script>
 
 {#if selected}
@@ -67,9 +80,9 @@
   <div id="left">
     <figure>
       <div>
-        <img src="{selectedImage.src}" alt="" />
+        <img src="{selectedImage.src}" alt="{selectedImage.alt.split("/").pop()}" />
       </div>
-      <figcaption>{selectedImage.src.split("/").pop()}</figcaption>
+      <figcaption>{selectedImage.alt.split("/").pop()}</figcaption>
     </figure>
   </div>
   <div id="right">
