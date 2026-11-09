@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use walkdir::WalkDir;
-use std::{path::PathBuf, sync::Mutex};
+use std::{collections::HashMap, path::PathBuf, sync::Mutex};
 use tauri::{Manager, State};
 use anyhow::{anyhow, Result, bail};
 use std::path::Path;
@@ -116,14 +116,17 @@ async fn load_photo_album_tags() -> Result<Vec<String>, String> {
 }
 
 fn get_photo_album_tags() -> Result<Vec<String>, String> {
-    let mut all_tags = Vec::new();
+    // Count use of each tag in photo album
+    let mut all_tags_map = HashMap::new();
     for image in get_photo_album_images().map_err(|e| e.to_string())? {
         let tags = extract_tags(&image);
         match tags {
             Some(tags) => {
                 for tag in tags {
-                    if !all_tags.contains(&tag) {
-                        all_tags.push(tag);
+                    if all_tags_map.contains_key(&tag) {
+                        *all_tags_map.get_mut(&tag).unwrap() += 1;
+                    } else {
+                        all_tags_map.insert(tag, 1);
                     }
                 }
             }
@@ -132,9 +135,10 @@ fn get_photo_album_tags() -> Result<Vec<String>, String> {
 
     }
 
-    all_tags.sort();
-
-    Ok(all_tags)
+    // Sort by usage and return tag list
+    let mut all_tags: Vec<_> = all_tags_map.into_iter().collect();
+    all_tags.sort_by(|a, b| b.1.cmp(&a.1));
+    Ok(all_tags.into_iter().map(|(tag, _)| tag).collect())
 }
 
 fn extract_title(path: &PathBuf) -> Option<String> {
