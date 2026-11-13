@@ -24,7 +24,7 @@
 
   async function loadImages() {
     try {
-      images = await invoke("get_images");
+      images = await invoke("get_images_as_strings");
     } catch (error) {
       console.error("Failed to load images:", error);
     }

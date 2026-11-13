@@ -24,7 +24,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             set_open_folder,
-            get_images,
+            get_images_as_strings,
             load_photo_album_tags,
             parse_datetime_from_string,
             parse_title_from_string,
@@ -50,49 +50,21 @@ fn set_open_folder(path: String, state: State<'_, AppState>) -> Result<(), Strin
     Ok(())
 }
 
-fn get_open_folder_path(state: State<'_, AppState>) -> Result<PathBuf> {
+fn open_folder_path(state: State<'_, AppState>) -> Result<PathBuf> {
     let folder = state.open_folder.lock().map_err(|e| anyhow!("{}", e))?;
     folder.clone().ok_or_else(|| anyhow!("No folder is open"))
 }
 
-fn get_photo_album_images_path() -> String {
+fn photo_album_images_path() -> String {
     String::from("/Users/olive/Desktop/Attic/Keepsakes/PhotoAlbum")
 }
 
-#[tauri::command]
-fn get_images(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    let root = get_open_folder_path(state).map_err(|e| e.to_string())?;
-
+fn images_at_path(path: PathBuf) -> Result<Vec<PathBuf>> {
     let extensions = get_accepted_extensions();
 
     let mut files = Vec::new();
 
-    for entry in WalkDir::new(root) {
-        let entry = entry.map_err(|e| e.to_string())?;
-
-        if !entry.file_type().is_file() {
-            continue;
-        }
-
-        let extension = entry.path()
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("");
-
-        if extensions.iter().any(|ext| extension.eq_ignore_ascii_case(ext)) {
-            files.push(entry.path().to_string_lossy().into_owned());
-        }
-    }
-
-    files.sort();
-
-    Ok(files)
-}
-
-fn get_photo_album_images() -> Result<Vec<PathBuf>> {
-    let mut images = Vec::new();
-
-    for entry in WalkDir::new(get_photo_album_images_path()) {
+    for entry in WalkDir::new(path) {
         let entry = entry?;
 
         if !entry.file_type().is_file() {
@@ -104,13 +76,29 @@ fn get_photo_album_images() -> Result<Vec<PathBuf>> {
             .and_then(|ext| ext.to_str())
             .unwrap_or("");
 
-        let extensions = get_accepted_extensions();
         if extensions.iter().any(|ext| extension.eq_ignore_ascii_case(ext)) {
-            images.push(entry.into_path());
+            files.push(entry.path().to_path_buf());
         }
     }
 
-    Ok(images)
+    files.sort();
+
+    Ok(files)   
+}
+
+fn photo_album_images() -> Result<Vec<PathBuf>> {
+    Ok(images_at_path(PathBuf::from(photo_album_images_path()))?)
+}
+
+fn open_folder_images(state: State<'_, AppState>) -> Result<Vec<PathBuf>> {
+    Ok(images_at_path(open_folder_path(state)?)?)
+}
+
+#[tauri::command]
+fn get_images_as_strings(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let images = open_folder_images(state).map_err(|e| e.to_string())?;
+    let images_as_strings = images.into_iter().map(|path| path.to_string_lossy().into_owned()).collect();
+    Ok(images_as_strings)
 }
 
 #[tauri::command]
@@ -123,7 +111,7 @@ async fn load_photo_album_tags() -> Result<Vec<String>, String> {
 fn get_photo_album_tags() -> Result<Vec<String>, String> {
     // Count use of each tag in photo album
     let mut all_tags_map = HashMap::new();
-    for image in get_photo_album_images().map_err(|e| e.to_string())? {
+    for image in photo_album_images().map_err(|e| e.to_string())? {
         let tags = parse_tags(&image);
         match tags {
             Some(tags) => {
