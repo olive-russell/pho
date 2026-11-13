@@ -1,10 +1,15 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use walkdir::WalkDir;
 use std::{collections::HashMap, path::PathBuf, sync::Mutex};
-use tauri::{Manager, State};
-use anyhow::{anyhow, Result, bail};
+use tauri::{State};
+use anyhow::{Result, anyhow};
 use std::path::Path;
 use regex::Regex;
+use nom_exif::{EntryValue, ExifTag, Metadata, TrackInfoTag, read_metadata};
+use nom_exif::{ExifDateTime};
+use chrono::{DateTime, Utc};
+use std::fs;
+use serde::Serialize;
 
 #[derive(Default)]
 struct AppState {
@@ -18,26 +23,45 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
             set_open_folder,
             get_images,
-            load_photo_album_tags
+            load_photo_album_tags,
+            parse_datetime_from_string,
+            parse_title_from_string,
+            parse_tags_from_string,
+            extract_metadata_from_string
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn set_open_folder(path: String, state: State<'_, AppState>) -> Result<(), String> {
+    let path = PathBuf::from(path)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+
+    if !path.is_dir() {
+        return Err("Selected path is not a directory".into());
+    }
+
+    *state.open_folder.lock().map_err(|e| e.to_string())? = Some(path);
+
+    Ok(())
+}
+
+fn get_open_folder_path(state: State<'_, AppState>) -> Result<PathBuf> {
+    let folder = state.open_folder.lock().map_err(|e| anyhow!("{}", e))?;
+    folder.clone().ok_or_else(|| anyhow!("No folder is open"))
+}
+
+fn get_photo_album_images_path() -> String {
+    String::from("/Users/olive/Desktop/Attic/Keepsakes/PhotoAlbum")
 }
 
 #[tauri::command]
 fn get_images(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    let root = {
-        let folder = state.open_folder.lock().map_err(|e| e.to_string())?;
-        folder.clone().ok_or_else(|| "No folder is open".to_string())?
-    };
+    let root = get_open_folder_path(state).map_err(|e| e.to_string())?;
 
     let extensions = get_accepted_extensions();
 
@@ -63,25 +87,6 @@ fn get_images(state: State<'_, AppState>) -> Result<Vec<String>, String> {
     files.sort();
 
     Ok(files)
-}
-
-#[tauri::command]
-fn set_open_folder(path: String, state: State<'_, AppState>) -> Result<(), String> {
-    let path = PathBuf::from(path)
-        .canonicalize()
-        .map_err(|e| e.to_string())?;
-
-    if !path.is_dir() {
-        return Err("Selected path is not a directory".into());
-    }
-
-    *state.open_folder.lock().map_err(|e| e.to_string())? = Some(path);
-
-    Ok(())
-}
-
-fn get_photo_album_images_path() -> String {
-    String::from("/Users/olive/Desktop/Attic/Keepsakes/PhotoAlbum")
 }
 
 fn get_photo_album_images() -> Result<Vec<PathBuf>> {
@@ -119,7 +124,7 @@ fn get_photo_album_tags() -> Result<Vec<String>, String> {
     // Count use of each tag in photo album
     let mut all_tags_map = HashMap::new();
     for image in get_photo_album_images().map_err(|e| e.to_string())? {
-        let tags = extract_tags(&image);
+        let tags = parse_tags(&image);
         match tags {
             Some(tags) => {
                 for tag in tags {
@@ -141,28 +146,135 @@ fn get_photo_album_tags() -> Result<Vec<String>, String> {
     Ok(all_tags.into_iter().map(|(tag, _)| tag).collect())
 }
 
-fn extract_title(path: &PathBuf) -> Option<String> {
+fn parse_datetime(path: &PathBuf) -> Option<String> {
+    let file_stem = path.file_stem()?.to_str()?;
+    let date = image_regex().captures(file_stem)?.name("datetime")?;
+    Some(date.as_str().to_string())
+}
+
+fn parse_datetime_and_index(path: &PathBuf) -> Option<String> {
+    let file_stem = path.file_stem()?.to_str()?;
+    let datetime_and_index = image_regex().captures(file_stem)?.name("datetimeindex")?;
+    Some(datetime_and_index.as_str().to_string())
+}
+
+fn parse_title(path: &PathBuf) -> Option<String> {
     let file_stem = path.file_stem()?.to_str()?;
     let title = image_regex().captures(file_stem)?.name("title")?;
     Some(title.as_str().to_string())
 }
 
-fn extract_tags(path: &PathBuf) -> Option<Vec<String>> {
+fn parse_tags(path: &PathBuf) -> Option<Vec<String>> {
     let file_stem = path.file_stem()?.to_str()?;
     let tags_raw = image_regex().captures(file_stem)?.name("tags")?;
     let tags = tags_raw.as_str().split(';').map(String::from).collect();
     Some(tags)
 }
 
+#[tauri::command]
+fn parse_datetime_from_string(path_string: String) -> Option<String> {
+    parse_datetime(&PathBuf::from(path_string))
+}
+
+#[tauri::command]
+fn parse_title_from_string(path_string: String) -> Option<String> {
+    parse_title(&PathBuf::from(path_string))
+}
+
+#[tauri::command]
+fn parse_tags_from_string(path_string: String) -> Option<Vec<String>> {
+    parse_tags(&PathBuf::from(path_string))
+}
+
 fn image_regex() -> Regex {
     Regex::new(
-        r"^\d{4}-\d{2}-\d{2}-\d{4}-\d{4}(?:_(?<title>[^;]*))?(?:;(?<tags>.*))?$"
+        r"^(?<datetimeindex>(?<datetime>\d{4}-\d{2}-\d{2}-\d{4})-(?<index>\d{4}))(?:_(?<title>[^;]*))?(?:;(?<tags>.*))?$"
     ).unwrap()
 }
 
-fn get_accepted_extensions() -> [&'static str; 10] {
+fn get_accepted_extensions() -> [&'static str; 11] {
     [
-        "jpg", "jpeg", "png", "gif", "webp",
-        "heic", "heif", "tif", "tiff", "mov",
+        "jpg", "jpeg", "png", "webp",
+        "heic", "heif", "tif", "tiff", 
+        "mkv", "mp4", "mov",
     ]
+}
+
+#[derive(Serialize)]
+struct ImageMetadata {
+    date_taken: Option<String>,
+    date_media_created: Option<String>,
+    date_created: Option<String>
+}
+
+#[tauri::command]
+fn extract_metadata_from_string(path_string: String) -> Result<ImageMetadata, String> {
+    extract_metadata(&PathBuf::from(path_string)).map_err(|e| e.to_string())
+}
+
+// not read
+fn format_datetime(value: Option<&EntryValue>) -> Option<String> {
+    value?.as_datetime().map(|dt| match dt {
+        ExifDateTime::Aware(dt) => dt.format("%Y-%m-%d-%H%M").to_string(),
+        ExifDateTime::Naive(dt) => dt.format("%Y-%m-%d-%H%M").to_string(),
+    })
+}
+
+// not read
+fn extract_metadata(path: &Path) -> Result<ImageMetadata> {
+    let date_created = fs::metadata(path)
+        .ok()
+        .and_then(|metadata| metadata.created().ok())
+        .map(|time| DateTime::<Utc>::from(time).format("%Y-%m-%d-%H%M").to_string());
+
+    let mut metadata = ImageMetadata {
+        date_taken: None,
+        date_media_created: None,
+        date_created,
+    };
+
+    match read_metadata(path)? {
+        Metadata::Exif(exif) => {
+            metadata.date_taken = format_datetime(
+                exif.get(ExifTag::DateTimeOriginal)
+            );
+        }
+        Metadata::Track(track) => {
+            metadata.date_media_created = format_datetime(
+                track.get(TrackInfoTag::CreateDate)
+            );
+        }
+    }
+
+    Ok(metadata)
+}
+
+fn files_in_open_folder() {
+    //     let root = {
+    //     let folder = state.open_folder.lock().map_err(|e| e.to_string())?;
+    //     folder.clone().ok_or_else(|| "No folder is open".to_string())?
+    // };
+
+}
+
+fn all_datetime_index() {
+
+}
+
+fn stamp_image(path: &Path) -> Result<()> {
+    // Get list of date and indices
+
+    // Validate extension
+
+    // Extract metadata
+
+    // Compute date string
+
+    // Compute index string
+
+    // Rename paired MOV
+
+    // Rename main file
+
+    Ok(())
 }

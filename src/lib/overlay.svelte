@@ -27,20 +27,72 @@
   let nextImage = $derived(selected?.nextElementSibling?.querySelector("img") ?? null);
   
   // Get list of dates
-  let dateTaken = $derived(selectedImage ? "2024-12-04-1906" : "");
-  let dateCreated = $derived(selectedImage ? "2025-01-11-2050" : "");
-  let dateMediaCreated = $derived(selectedImage ? "2024-12-04-1906" : "");
+  let dateTaken = $derived(metadata ? metadata.date_taken : "");
+  let dateCreated = $derived(metadata ? metadata.date_created : "");
+  let dateMediaCreated = $derived(metadata ? metadata.date_media_created : "");
+
+  let metadata = $state(null);
+  $effect(() => {
+    if (selectedImage) extractMetadata(selectedImage.getAttribute("path"));
+  });
+    
+  async function extractMetadata(pathString) {
+    try {
+      console.log("we've been activated");
+      metadata = await invoke("extract_metadata_from_string", {pathString});
+      console.log("metadata: ", $state.snapshot(metadata));
+    } catch (error) {
+      console.error("Failed to extract metadata:", error);
+    }
+  }
 
   // Configure date input
-  let date = $derived(selectedImage ? dateTaken : "")
+  let date = $state(null);
+  $effect(() => {
+    if (selected) parseDatetime(selectedImage.alt);
+  });
+    
+  async function parseDatetime(pathString) {
+    try {
+      date = await invoke("parse_datetime_from_string", {pathString});
+    } catch (error) {
+      console.error("Failed to parse date:", error);
+    }
+  }
 
   // Configure title input
   // svelte-ignore state_referenced_locally
-  let title = $derived(selectedImage?.alt.split("/").pop() ?? "");
+  let title = $state(null);
+  $effect(() => {
+    if (selected) parseTitle(selectedImage.alt);
+  });
   
+  async function parseTitle(pathString) {
+    try {
+      title = await invoke("parse_title_from_string", {pathString});
+    } catch (error) {
+      console.error("Failed to parse title:", error);
+    }
+  }
+
   // Configure tag input
-  let availableTags = $state(['one', 'two']);
-  let tags = $state(['one']);
+  let availableTags = $state(['Olive','F']);
+  let tags = $state([]);
+  $effect(() => {
+    if (selected) parseTags(selectedImage.alt);
+  });
+  
+  async function parseTags(pathString) {
+    tags = []; //TODO can i turn this line off?
+    try {
+        const result = await invoke("parse_tags_from_string", {pathString});
+        tags = Array.isArray(result) ? result : [];
+    } catch (error) {
+        console.error("Failed to parse tags:", error);
+        tags = [];
+    }
+  }
+
 
   // Form submit handler
   async function handleSubmit(event) {
@@ -64,9 +116,11 @@
 
   async function loadAvailableTags() {
     try {
-      availableTags = await invoke("load_photo_album_tags");
+        const result = await invoke("load_photo_album_tags");
+        availableTags = Array.isArray(result) ? result : [];
     } catch (error) {
-      console.error("Failed to load existing tag list:", error);
+        console.error("Failed to load existing tag list:", error);
+        availableTags = [];
     }
   }
 
@@ -108,14 +162,12 @@
       {#if previousImage}
       <button onclick={onPrevious}>
         <img src="{previousImage.src}" alt="">
-        <span>Previous</span>
       </button>
       {:else}
       <button disabled>Previous</button>
       {/if}
       {#if nextImage}
       <button onclick={onNext}>
-        <span>Next</span>
         <img src="{nextImage.src}" alt="">
       </button>
       {:else}
@@ -208,6 +260,7 @@
   }
   
   nav>button {
+    position: relative;
     display: flex;
     align-items: center;
     margin: 1em;
@@ -231,6 +284,23 @@
   nav>button>span {
     margin: 1em;
     font-size: large;
+  }
+
+  nav>button::after {
+    position:absolute;
+    left: 15%;
+    top: 50%;
+    height: 100%;
+    content: "←";
+    font-size: 10em;
+    line-height: 0px;
+    font-weight: bold;
+    font: arial;
+    color: #ffffff55;
+  }
+
+  nav>button:nth-child(2)::after {
+    content: "→"
   }
 
   #right *,

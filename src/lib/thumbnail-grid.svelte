@@ -7,7 +7,7 @@
     {#each images as image}
         <button class="image-tile" aria-label="Open image" onclick={(event) => selectElement(event.currentTarget)}>
             <figure>
-                <img src="{convertFileSrc(image)}" alt="{image.split("/").pop()}" />
+                <img src="{convertFileSrc(image)}" alt="{image.split("/").pop()}" path="{image}"/>
                 <figcaption>{image.split("/").pop()}</figcaption>
             </figure>
         </button>
@@ -46,5 +46,6 @@
   
   #image-list>button>figure>figcaption {
     margin-top: 0.5em;
+    line-break: anywhere;
   }
 </style>
