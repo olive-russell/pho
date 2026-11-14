@@ -10,3 +10,5 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 /static/demo-pics
 /static/demo-pics2
+/static/demo-pics3-source
+/static/demo-pics3

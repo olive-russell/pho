@@ -282,7 +282,8 @@ fn all_datetime_index(state: State<'_, AppState>) -> Result<HashSet<String>> {
     Ok(HashSet::from_iter(all_datetime_index))
 }
 
-fn stamp_image(state: State<'_, AppState>, path: &PathBuf) -> Result<()> {
+fn stamp_image(state: State<'_, AppState>, all_datetime_index: &mut HashSet<String>, path: &PathBuf) -> Result<()> {
+    println!("  Skips");
     // Validate extension
     if !accept_extension(path)? {
         return Err(anyhow!("Cannot stamp image not in accepted extensions"))
@@ -304,11 +305,12 @@ fn stamp_image(state: State<'_, AppState>, path: &PathBuf) -> Result<()> {
     if (extension.eq_ignore_ascii_case("MOV")) && heic_path.exists() {
         return Ok(())
     }
-
+    println!("  Metadata");
     // Extract metadata
     let metadata = extract_metadata(path.as_path())?;
 
     // Compute date string
+    println!("  Date");
     let date;
     if accept_extension_photo(path)? && metadata.date_taken.is_some() {
         date = metadata.date_taken.unwrap();
@@ -319,11 +321,17 @@ fn stamp_image(state: State<'_, AppState>, path: &PathBuf) -> Result<()> {
     }
 
     // Compute index string
-    let all_datetime_index = all_datetime_index(state)?;
+    println!("  Index");
+    println!("    Get all");
+    println!("    Find available");
     let index = (1..=9999).find(|index| !all_datetime_index.contains(&format!("{date}-{index:04}")))
         .ok_or_else(|| anyhow!("No available four-digit index for {date}"))?;
 
+    // Reserve index as taken
+    all_datetime_index.insert(format!("{date}-{index:04}"));
+
     // Compute new path
+    println!("  Assemble");
     let file_name = path.file_name().unwrap().to_string_lossy();
     let new_name = format!("{date}-{index:04}_{file_name}");
     let new_path = path.with_file_name(&new_name);
@@ -334,6 +342,7 @@ fn stamp_image(state: State<'_, AppState>, path: &PathBuf) -> Result<()> {
     }
 
     // Rename main file
+    println!("  Rename");
     std::fs::rename(path, new_path.clone())?;
 
     // Rename paired MOV, if it exists
@@ -352,8 +361,10 @@ fn stamp_image(state: State<'_, AppState>, path: &PathBuf) -> Result<()> {
 #[tauri::command]
 fn stamp_root_images(state: State<'_, AppState>) -> Result<(), String> {
     let images = root_images(state.clone()).map_err(|e| e.to_string())?;
+    let mut all_datetime_index = all_datetime_index(state.clone()).map_err(|e| e.to_string())?;
     for image in images {
-        stamp_image(state.clone(), &image).map_err(|e| e.to_string())?;
+        println!("Stamping {}", image.display());
+        stamp_image(state.clone(), &mut all_datetime_index, &image).map_err(|e| e.to_string())?;
     }
 
     Ok(())

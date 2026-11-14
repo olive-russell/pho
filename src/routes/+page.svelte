@@ -30,12 +30,30 @@
     }
   }
 
+  async function stamp() {
+    if (images.length != 0) {
+      await invoke("stamp_root_images");
+    } else {
+      console.error("Cannot stamp without images");
+    }
+  }
+
+  async function dejunk() {
+    if (images.length != 0) {
+      await invoke("dejunk_image_titles");
+    } else {
+      console.error("Cannot dejunk without images");
+    }
+  }
+
 </script>
 
 <main>
   <ThumbnailGrid selectElement={(element) => selected = element} images={images}/>
   <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling}/>
   <button onclick={openFolder}>open folder</button>
+  <button onclick={stamp}>stamp images</button>
+  <button onclick={dejunk}>dejunk image titles</button>
 </main>
 
 <style>
