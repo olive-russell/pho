@@ -1,6 +1,7 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
   import { open } from "@tauri-apps/plugin-dialog";
+  import { onMount } from "svelte";
   import Overlay from "$lib/overlay.svelte";
   import ThumbnailGrid from "$lib/thumbnail-grid.svelte";
   import LoadingScreen from "$lib/loading-screen.svelte";
@@ -24,6 +25,7 @@
   let images = $state([]);
 
   async function loadImages() {
+    console.log("Load images called")
     try {
       images = await invoke("get_images_as_strings");
     } catch (error) {
@@ -65,11 +67,17 @@
     }
   }
 
+  let videoExtensions = $state([]);
+
+  onMount(async () => {
+      videoExtensions = await invoke("accepted_extensions_video");
+  });
+
 </script>
 
 <main>
-  <ThumbnailGrid selectElement={(element) => selected = element} images={images}/>
-  <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling}/>
+  <ThumbnailGrid selectElement={(element) => selected = element} images={images} videoExtensions={videoExtensions}/>
+  <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling} videoExtensions={videoExtensions}/>
   <LoadingScreen loading={loading}></LoadingScreen>
   <button onclick={openFolder} disabled={loading}>open folder</button>
   <button onclick={stamp} disabled={loading}>stamp images</button>

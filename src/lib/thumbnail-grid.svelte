@@ -1,16 +1,21 @@
 <script>
     import { convertFileSrc } from "@tauri-apps/api/core";
-    let { selectElement, images } = $props();
+    let { selectElement, images, videoExtensions } = $props();
 </script>
 
 <section id="image-list" class="grid">
     {#each images as image}
-        <button class="image-tile" aria-label="Open image" onclick={(event) => selectElement(event.currentTarget)}>
-            <figure>
-                <img src="{convertFileSrc(image)}" alt="{image.split("/").pop()}" path="{image}"/>
-                <figcaption>{image.split("/").pop()}</figcaption>
-            </figure>
-        </button>
+    <button class="image-tile" aria-label="Open image" onclick={(event) => selectElement(event.currentTarget)}>
+      <figure>
+        {#if !videoExtensions.includes(image.split(".").pop().toLowerCase())}
+        <img class="image" src="{convertFileSrc(image)}" alt="{image.split("/").pop()}" name="{image.split("/").pop()}" path="{image}"/>
+        {:else}
+        <!-- svelte-ignore a11y_media_has_caption -->
+        <video class="image" src="{convertFileSrc(image)}" alt="{image.split("/").pop()}" name="{image.split("/").pop()}" path="{image}"></video>
+        {/if}
+        <figcaption>{image.split("/").pop()}</figcaption>
+      </figure>
+    </button>
     {/each}
 </section>
 
@@ -36,7 +41,7 @@
     outline: none;
   }
 
-  #image-list:focus-within img:hover {
+  #image-list:focus-within .image:hover {
     border-color: white;
   }
   

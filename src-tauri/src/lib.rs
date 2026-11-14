@@ -31,7 +31,8 @@ pub fn run() {
             parse_tags_from_string,
             extract_metadata_from_string,
             stamp_root_images_noblock,
-            dejunk_image_titles
+            dejunk_image_titles,
+            accepted_extensions_video
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -65,6 +66,7 @@ fn accepted_extensions_photo() -> [&'static str; 8] {
     ]
 }
 
+#[tauri::command]
 fn accepted_extensions_video() -> [&'static str; 3] {
     [
         "mkv", "mp4", "mov",

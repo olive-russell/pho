@@ -4,7 +4,7 @@
   import Tags from 'svelte-tags-input';
   import { onMount } from "svelte";
   
-  let { selected, onClose, onNext, onPrevious } = $props();
+  let { selected, onClose, onNext, onPrevious, videoExtensions } = $props();
   
   // Handle dialog state and actions
   let dialog = $state(null);
@@ -22,9 +22,9 @@
   }
   
   // Derive selected image and siblings
-  let selectedImage = $derived(selected?.querySelector("img") ?? null);
-  let previousImage = $derived(selected?.previousElementSibling?.querySelector("img") ?? null);  
-  let nextImage = $derived(selected?.nextElementSibling?.querySelector("img") ?? null);
+  let selectedImage = $derived(selected?.querySelector(".image") ?? null);
+  let previousImage = $derived(selected?.previousElementSibling?.querySelector(".image") ?? null);  
+  let nextImage = $derived(selected?.nextElementSibling?.querySelector(".image") ?? null);
   
   // Get list of dates
   let dateTaken = $derived(metadata ? metadata.date_taken : "");
@@ -49,7 +49,7 @@
   // Configure date input
   let date = $state(null);
   $effect(() => {
-    if (selected) parseDatetime(selectedImage.alt);
+    if (selected) parseDatetime(selectedImage.getAttribute("name"));
   });
     
   async function parseDatetime(pathString) {
@@ -64,7 +64,7 @@
   // svelte-ignore state_referenced_locally
   let title = $state(null);
   $effect(() => {
-    if (selected) parseTitle(selectedImage.alt);
+    if (selected) parseTitle(selectedImage.getAttribute("name"));
   });
   
   async function parseTitle(pathString) {
@@ -79,7 +79,7 @@
   let availableTags = $state(['Olive','F']);
   let tags = $state([]);
   $effect(() => {
-    if (selected) parseTags(selectedImage.alt);
+    if (selected) parseTags(selectedImage.getAttribute("name"));
   });
   
   async function parseTags(pathString) {
@@ -134,9 +134,14 @@
   <div id="left">
     <figure>
       <div>
-        <img src="{selectedImage.src}" alt="{selectedImage.alt.split("/").pop()}" />
+        {#if !videoExtensions.includes(selectedImage.getAttribute("name").split(".").pop().toLowerCase())}
+        <img class="image" src="{selectedImage.src}" alt="{selectedImage.getAttribute("name")}" />
+        {:else}
+        <!-- svelte-ignore a11y_media_has_caption -->
+        <video class="image" src="{selectedImage.src}" alt="{selectedImage.getAttribute("name")}" autoplay loop></video>
+        {/if}
       </div>
-      <figcaption>{selectedImage.alt.split("/").pop()}</figcaption>
+      <figcaption>{selectedImage.getAttribute("name")}</figcaption>
     </figure>
   </div>
   <div id="right">
@@ -161,14 +166,24 @@
     <nav>
       {#if previousImage}
       <button onclick={onPrevious}>
-        <img src="{previousImage.src}" alt="">
+        {#if !videoExtensions.includes(previousImage.getAttribute("name").split(".").pop().toLowerCase())}
+        <img class="image" src="{previousImage.src}" alt="">
+        {:else}
+        <!-- svelte-ignore a11y_media_has_caption -->
+        <video class="image" src="{previousImage.src}" alt="" autoplay loop muted></video>
+        {/if}
       </button>
       {:else}
       <button disabled>Previous</button>
       {/if}
       {#if nextImage}
       <button onclick={onNext}>
-        <img src="{nextImage.src}" alt="">
+        {#if !videoExtensions.includes(nextImage.getAttribute("name").split(".").pop().toLowerCase())}
+        <img class="image" src="{nextImage.src}" alt="">
+        {:else}
+        <!-- svelte-ignore a11y_media_has_caption -->
+        <video class="image" src="{nextImage.src}" alt="" autoplay loop muted></video>
+        {/if}
       </button>
       {:else}
       <button disabled>Next</button>
@@ -232,7 +247,7 @@
     justify-content: center;
   }
   
-  figure>div>img {
+  figure>div>.image {
     display: block;
     max-width: 100%;
     max-height: 100%;
@@ -241,7 +256,7 @@
     border-radius: 8px;
   }
   
-  figure>div>img:hover {
+  figure>div>.image:hover {
     border-color: white;
   }
   
@@ -273,17 +288,12 @@
     justify-content: right;
   }
   
-  nav>button>img {
+  nav>button>.image {
     object-fit: contain;
     max-width: 100%;
     max-height: 100%;
     width: auto;
     height: auto;
-  }
-  
-  nav>button>span {
-    margin: 1em;
-    font-size: large;
   }
 
   nav>button::after {
@@ -301,11 +311,6 @@
 
   nav>button:nth-child(2)::after {
     content: "→"
-  }
-
-  #right *,
-  #right {
-    /* outline: 1px solid red; */
   }
 
   #right {
