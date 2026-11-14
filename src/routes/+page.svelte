@@ -3,6 +3,7 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import Overlay from "$lib/overlay.svelte";
   import ThumbnailGrid from "$lib/thumbnail-grid.svelte";
+  import LoadingScreen from "$lib/loading-screen.svelte";
   import "./+layout.css"
 
   let selected = $state(null);
@@ -30,9 +31,19 @@
     }
   }
 
+  let loading = $state(false);
+
   async function stamp() {
     if (images.length != 0) {
-      await invoke("stamp_root_images");
+      loading = true;
+      try {
+        await invoke("stamp_root_images_noblock");
+        await loadImages();
+      } catch (error) {
+        console.error("Failed to stamp images:", error);
+      } finally {
+        loading = false;
+      }
     } else {
       console.error("Cannot stamp without images");
     }
@@ -40,7 +51,15 @@
 
   async function dejunk() {
     if (images.length != 0) {
-      await invoke("dejunk_image_titles");
+      loading = true;
+      try {
+        await invoke("dejunk_image_titles");
+        await loadImages();
+      } catch (error) {
+        console.error("Failed to dejunk images:", error);
+      } finally {
+        loading = false;
+      }
     } else {
       console.error("Cannot dejunk without images");
     }
@@ -51,9 +70,10 @@
 <main>
   <ThumbnailGrid selectElement={(element) => selected = element} images={images}/>
   <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling}/>
-  <button onclick={openFolder}>open folder</button>
-  <button onclick={stamp}>stamp images</button>
-  <button onclick={dejunk}>dejunk image titles</button>
+  <LoadingScreen loading={loading}></LoadingScreen>
+  <button onclick={openFolder} disabled={loading}>open folder</button>
+  <button onclick={stamp} disabled={loading}>stamp images</button>
+  <button onclick={dejunk} disabled={loading}>dejunk image titles</button>
 </main>
 
 <style>

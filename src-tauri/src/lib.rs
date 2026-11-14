@@ -30,7 +30,7 @@ pub fn run() {
             parse_title_from_string,
             parse_tags_from_string,
             extract_metadata_from_string,
-            stamp_root_images,
+            stamp_root_images_noblock,
             dejunk_image_titles
         ])
         .run(tauri::generate_context!())
@@ -118,7 +118,7 @@ fn photo_album_path() -> String {
     String::from("/Users/olive/Desktop/Attic/Keepsakes/PhotoAlbum")
 }
 
-fn images_at_path(path: PathBuf) -> Result<Vec<PathBuf>> {
+fn images_at_path(path: &PathBuf) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     for entry in WalkDir::new(path) {
@@ -139,22 +139,22 @@ fn images_at_path(path: PathBuf) -> Result<Vec<PathBuf>> {
 }
 
 fn photo_album_images() -> Result<Vec<PathBuf>> {
-    Ok(images_at_path(PathBuf::from(photo_album_path()))?)
+    Ok(images_at_path(&PathBuf::from(photo_album_path()))?)
 }
 
-fn root_images(state: State<'_, AppState>) -> Result<Vec<PathBuf>> {
-    Ok(images_at_path(root_path(state)?)?)
+fn root_images(root: &PathBuf) -> Result<Vec<PathBuf>> {
+    Ok(images_at_path(root)?)
 }
 
-fn all_images(state: State<'_, AppState>) -> Result<Vec<PathBuf>> {
+fn all_images(root: &PathBuf) -> Result<Vec<PathBuf>> {
     let mut all_images = photo_album_images()?;
-    all_images.extend(root_images(state)?);
+    all_images.extend(root_images(root)?);
     Ok(all_images)
 }
 
 #[tauri::command]
 fn get_images_as_strings(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    let images = root_images(state).map_err(|e| e.to_string())?;
+    let images = root_images(&root_path(state).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     let images_as_strings = images.into_iter().map(|path| path.to_string_lossy().into_owned()).collect();
     Ok(images_as_strings)
 }
@@ -275,8 +275,8 @@ fn extract_metadata(path: &Path) -> Result<ImageMetadata> {
     Ok(metadata)
 }
 
-fn all_datetime_index(state: State<'_, AppState>) -> Result<HashSet<String>> {
-    let all_images = all_images(state)?;
+fn all_datetime_index(root: &PathBuf) -> Result<HashSet<String>> {
+    let all_images = all_images(root)?;
     let all_datetime_index: Vec<String> = all_images.iter().filter_map(|path| parse_datetime_and_index(&path)).collect();
 
     Ok(HashSet::from_iter(all_datetime_index))
@@ -358,16 +358,24 @@ fn stamp_image(all_datetime_index: &mut HashSet<String>, path: &PathBuf) -> Resu
     Ok(())
 }
 
-#[tauri::command]
-fn stamp_root_images(state: State<'_, AppState>) -> Result<(), String> {
-    let images = root_images(state.clone()).map_err(|e| e.to_string())?;
-    let mut all_datetime_index = all_datetime_index(state.clone()).map_err(|e| e.to_string())?;
+fn stamp_root_images(root: &PathBuf) -> Result<()> {
+    let images = root_images(&root)?;
+    let mut all_datetime_index = all_datetime_index(&root)?;
     for image in images {
         println!("Stamping {}", image.display());
-        stamp_image(&mut all_datetime_index, &image).map_err(|e| e.to_string())?;
+        stamp_image(&mut all_datetime_index, &image)?;
     }
 
     Ok(())
+}
+
+#[tauri::command]
+async fn stamp_root_images_noblock(state: State<'_, AppState>) -> Result<(), String> {
+    let root = root_path(state).map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {stamp_root_images(&root)})
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
 
 fn dejunk_image_title(path: &PathBuf) -> Result<()> {
@@ -388,7 +396,7 @@ fn dejunk_image_title(path: &PathBuf) -> Result<()> {
 
 #[tauri::command]
 fn dejunk_image_titles(state: State<'_, AppState>) -> Result<(), String> {
-    let images = root_images(state.clone()).map_err(|e| e.to_string())?;
+    let images = root_images(&root_path(state).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     for image in images {
         dejunk_image_title(&image).map_err(|e| e.to_string())?;
     }
