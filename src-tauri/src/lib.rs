@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use walkdir::WalkDir;
-use std::{collections::HashMap, path::PathBuf, sync::Mutex};
+use std::{collections::{HashMap, HashSet}, path::PathBuf, sync::Mutex};
 use tauri::{State};
 use anyhow::{Result, anyhow};
 use std::path::Path;
@@ -29,7 +29,8 @@ pub fn run() {
             parse_datetime_from_string,
             parse_title_from_string,
             parse_tags_from_string,
-            extract_metadata_from_string
+            extract_metadata_from_string,
+            stamp_root_images
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -56,12 +57,48 @@ fn image_regex() -> Regex {
     ).unwrap()
 }
 
-fn get_accepted_extensions() -> [&'static str; 11] {
+fn accepted_extensions_photo() -> [&'static str; 8] {
+    [
+        "jpg", "jpeg", "png", "webp",
+        "heic", "heif", "tif", "tiff",        
+    ]
+}
+
+fn accepted_extensions_video() -> [&'static str; 3] {
+    [
+        "mkv", "mp4", "mov",
+    ]
+}
+
+fn accepted_extensions() -> [&'static str; 11] {
     [
         "jpg", "jpeg", "png", "webp",
         "heic", "heif", "tif", "tiff", 
         "mkv", "mp4", "mov",
     ]
+}
+
+fn extension_str(path: &PathBuf) -> Result<&str> {
+    let extension = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("");
+    Ok(extension)
+}
+
+fn accept_extension(path: &PathBuf) -> Result<bool> {
+    let extension_str = extension_str(path)?;
+    Ok(accepted_extensions().iter().any(|ext| extension_str.eq_ignore_ascii_case(ext)))
+}
+
+fn accept_extension_photo(path: &PathBuf) -> Result<bool> {
+    let extension_str = extension_str(path)?;
+    Ok(accepted_extensions_photo().iter().any(|ext| extension_str.eq_ignore_ascii_case(ext)))
+}
+
+fn accept_extension_video(path: &PathBuf) -> Result<bool> {
+    let extension_str = extension_str(path)?;
+    Ok(accepted_extensions_video().iter().any(|ext| extension_str.eq_ignore_ascii_case(ext)))
 }
 
 #[derive(Serialize)]
@@ -81,8 +118,6 @@ fn photo_album_path() -> String {
 }
 
 fn images_at_path(path: PathBuf) -> Result<Vec<PathBuf>> {
-    let extensions = get_accepted_extensions();
-
     let mut files = Vec::new();
 
     for entry in WalkDir::new(path) {
@@ -92,12 +127,7 @@ fn images_at_path(path: PathBuf) -> Result<Vec<PathBuf>> {
             continue;
         }
 
-        let extension = entry.path()
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("");
-
-        if extensions.iter().any(|ext| extension.eq_ignore_ascii_case(ext)) {
+        if accept_extension(&entry.path().to_path_buf())? {
             files.push(entry.path().to_path_buf());
         }
     }
@@ -244,32 +274,86 @@ fn extract_metadata(path: &Path) -> Result<ImageMetadata> {
     Ok(metadata)
 }
 
-fn files_in_root() {
-    //     let root = {
-    //     let folder = state.root.lock().map_err(|e| e.to_string())?;
-    //     folder.clone().ok_or_else(|| "No folder is open".to_string())?
-    // };
+fn all_datetime_index(state: State<'_, AppState>) -> Result<HashSet<String>> {
+    let all_images = all_images(state)?;
+    let all_datetime_index: Vec<String> = all_images.iter().filter_map(|path| parse_datetime_and_index(&path)).collect();
 
+    Ok(HashSet::from_iter(all_datetime_index))
 }
 
-fn all_datetime_index() {
-
-}
-
-fn stamp_image(path: &Path) -> Result<()> {
-    // Get list of date and indices
-
+fn stamp_image(state: State<'_, AppState>, path: &PathBuf) -> Result<()> {
     // Validate extension
+    if !accept_extension(path)? {
+        return Err(anyhow!("Cannot stamp image not in accepted extensions"))
+    }
+
+    // Skip if doesn't exist
+    if !path.exists() {
+        return Ok(());
+    }
+
+    // Skip if already stamped
+    if parse_datetime_and_index(path).is_some() {
+        return Ok(());
+    }
+
+    // Skip if is paired mov
+    let extension = extension_str(path)?;
+    let heic_path = path.with_extension("HEIC");
+    if (extension.eq_ignore_ascii_case("MOV")) && heic_path.exists() {
+        return Ok(())
+    }
 
     // Extract metadata
+    let metadata = extract_metadata(path.as_path())?;
 
     // Compute date string
+    let date;
+    if accept_extension_photo(path)? && metadata.date_taken.is_some() {
+        date = metadata.date_taken.unwrap();
+    } else if accept_extension_video(path)? && metadata.date_media_created.is_some() {
+        date = metadata.date_media_created.unwrap();
+    } else {
+        return Err(anyhow!("No date found"));
+    }
 
     // Compute index string
+    let all_datetime_index = all_datetime_index(state)?;
+    let index = (1..=9999).find(|index| !all_datetime_index.contains(&format!("{date}-{index:04}")))
+        .ok_or_else(|| anyhow!("No available four-digit index for {date}"))?;
 
-    // Rename paired MOV
+    // Compute new path
+    let file_name = path.file_name().unwrap().to_string_lossy();
+    let new_name = format!("{date}-{index:04}_{file_name}");
+    let new_path = path.with_file_name(&new_name);
+
+    // Skip if already exists
+    if new_path.exists() {
+        return Err(anyhow!("Destination already exists: {}", new_path.display()));
+    }
 
     // Rename main file
+    std::fs::rename(path, new_path.clone())?;
+
+    // Rename paired MOV, if it exists
+    let mov_path = path.with_extension("MOV");
+    if (extension.eq_ignore_ascii_case("HEIC")) && mov_path.exists() {
+        let new_mov_path = new_path.clone().with_extension("MOV");
+        if new_mov_path.exists() {
+            return Err(anyhow!("Destination already exists: {}", new_mov_path.display()));
+        }
+        std::fs::rename(&mov_path, &new_mov_path)?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn stamp_root_images(state: State<'_, AppState>) -> Result<(), String> {
+    let images = root_images(state.clone()).map_err(|e| e.to_string())?;
+    for image in images {
+        stamp_image(state.clone(), &image).map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }
