@@ -13,7 +13,7 @@ use serde::Serialize;
 
 #[derive(Default)]
 struct AppState {
-    open_folder: Mutex<Option<PathBuf>>,
+    root: Mutex<Option<PathBuf>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -23,7 +23,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            set_open_folder,
+            set_root,
             get_images_as_strings,
             load_photo_album_tags,
             parse_datetime_from_string,
@@ -36,7 +36,7 @@ pub fn run() {
 }
 
 #[tauri::command]
-fn set_open_folder(path: String, state: State<'_, AppState>) -> Result<(), String> {
+fn set_root(path: String, state: State<'_, AppState>) -> Result<(), String> {
     let path = PathBuf::from(path)
         .canonicalize()
         .map_err(|e| e.to_string())?;
@@ -45,17 +45,38 @@ fn set_open_folder(path: String, state: State<'_, AppState>) -> Result<(), Strin
         return Err("Selected path is not a directory".into());
     }
 
-    *state.open_folder.lock().map_err(|e| e.to_string())? = Some(path);
+    *state.root.lock().map_err(|e| e.to_string())? = Some(path);
 
     Ok(())
 }
 
-fn open_folder_path(state: State<'_, AppState>) -> Result<PathBuf> {
-    let folder = state.open_folder.lock().map_err(|e| anyhow!("{}", e))?;
+fn image_regex() -> Regex {
+    Regex::new(
+        r"^(?<datetimeindex>(?<datetime>\d{4}-\d{2}-\d{2}-\d{4})-(?<index>\d{4}))(?:_(?<title>[^;]*))?(?:;(?<tags>.*))?$"
+    ).unwrap()
+}
+
+fn get_accepted_extensions() -> [&'static str; 11] {
+    [
+        "jpg", "jpeg", "png", "webp",
+        "heic", "heif", "tif", "tiff", 
+        "mkv", "mp4", "mov",
+    ]
+}
+
+#[derive(Serialize)]
+struct ImageMetadata {
+    date_taken: Option<String>,
+    date_media_created: Option<String>,
+    date_created: Option<String>
+}
+
+fn root_path(state: State<'_, AppState>) -> Result<PathBuf> {
+    let folder = state.root.lock().map_err(|e| anyhow!("{}", e))?;
     folder.clone().ok_or_else(|| anyhow!("No folder is open"))
 }
 
-fn photo_album_images_path() -> String {
+fn photo_album_path() -> String {
     String::from("/Users/olive/Desktop/Attic/Keepsakes/PhotoAlbum")
 }
 
@@ -87,16 +108,22 @@ fn images_at_path(path: PathBuf) -> Result<Vec<PathBuf>> {
 }
 
 fn photo_album_images() -> Result<Vec<PathBuf>> {
-    Ok(images_at_path(PathBuf::from(photo_album_images_path()))?)
+    Ok(images_at_path(PathBuf::from(photo_album_path()))?)
 }
 
-fn open_folder_images(state: State<'_, AppState>) -> Result<Vec<PathBuf>> {
-    Ok(images_at_path(open_folder_path(state)?)?)
+fn root_images(state: State<'_, AppState>) -> Result<Vec<PathBuf>> {
+    Ok(images_at_path(root_path(state)?)?)
+}
+
+fn all_images(state: State<'_, AppState>) -> Result<Vec<PathBuf>> {
+    let mut all_images = photo_album_images()?;
+    all_images.extend(root_images(state)?);
+    Ok(all_images)
 }
 
 #[tauri::command]
 fn get_images_as_strings(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    let images = open_folder_images(state).map_err(|e| e.to_string())?;
+    let images = root_images(state).map_err(|e| e.to_string())?;
     let images_as_strings = images.into_iter().map(|path| path.to_string_lossy().into_owned()).collect();
     Ok(images_as_strings)
 }
@@ -106,12 +133,13 @@ async fn load_photo_album_tags() -> Result<Vec<String>, String> {
     tauri::async_runtime::spawn_blocking(get_photo_album_tags)
         .await
         .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
 
-fn get_photo_album_tags() -> Result<Vec<String>, String> {
+fn get_photo_album_tags() -> Result<Vec<String>> {
     // Count use of each tag in photo album
     let mut all_tags_map = HashMap::new();
-    for image in photo_album_images().map_err(|e| e.to_string())? {
+    for image in photo_album_images()? {
         let tags = parse_tags(&image);
         match tags {
             Some(tags) => {
@@ -174,27 +202,6 @@ fn parse_tags_from_string(path_string: String) -> Option<Vec<String>> {
     parse_tags(&PathBuf::from(path_string))
 }
 
-fn image_regex() -> Regex {
-    Regex::new(
-        r"^(?<datetimeindex>(?<datetime>\d{4}-\d{2}-\d{2}-\d{4})-(?<index>\d{4}))(?:_(?<title>[^;]*))?(?:;(?<tags>.*))?$"
-    ).unwrap()
-}
-
-fn get_accepted_extensions() -> [&'static str; 11] {
-    [
-        "jpg", "jpeg", "png", "webp",
-        "heic", "heif", "tif", "tiff", 
-        "mkv", "mp4", "mov",
-    ]
-}
-
-#[derive(Serialize)]
-struct ImageMetadata {
-    date_taken: Option<String>,
-    date_media_created: Option<String>,
-    date_created: Option<String>
-}
-
 #[tauri::command]
 fn extract_metadata_from_string(path_string: String) -> Result<ImageMetadata, String> {
     extract_metadata(&PathBuf::from(path_string)).map_err(|e| e.to_string())
@@ -237,9 +244,9 @@ fn extract_metadata(path: &Path) -> Result<ImageMetadata> {
     Ok(metadata)
 }
 
-fn files_in_open_folder() {
+fn files_in_root() {
     //     let root = {
-    //     let folder = state.open_folder.lock().map_err(|e| e.to_string())?;
+    //     let folder = state.root.lock().map_err(|e| e.to_string())?;
     //     folder.clone().ok_or_else(|| "No folder is open".to_string())?
     // };
 
