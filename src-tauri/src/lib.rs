@@ -282,7 +282,7 @@ fn all_datetime_index(state: State<'_, AppState>) -> Result<HashSet<String>> {
     Ok(HashSet::from_iter(all_datetime_index))
 }
 
-fn stamp_image(state: State<'_, AppState>, all_datetime_index: &mut HashSet<String>, path: &PathBuf) -> Result<()> {
+fn stamp_image(all_datetime_index: &mut HashSet<String>, path: &PathBuf) -> Result<()> {
     println!("  Skips");
     // Validate extension
     if !accept_extension(path)? {
@@ -364,7 +364,7 @@ fn stamp_root_images(state: State<'_, AppState>) -> Result<(), String> {
     let mut all_datetime_index = all_datetime_index(state.clone()).map_err(|e| e.to_string())?;
     for image in images {
         println!("Stamping {}", image.display());
-        stamp_image(state.clone(), &mut all_datetime_index, &image).map_err(|e| e.to_string())?;
+        stamp_image(&mut all_datetime_index, &image).map_err(|e| e.to_string())?;
     }
 
     Ok(())
