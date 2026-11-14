@@ -30,7 +30,8 @@ pub fn run() {
             parse_title_from_string,
             parse_tags_from_string,
             extract_metadata_from_string,
-            stamp_root_images
+            stamp_root_images,
+            dejunk_image_titles
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -353,6 +354,32 @@ fn stamp_root_images(state: State<'_, AppState>) -> Result<(), String> {
     let images = root_images(state.clone()).map_err(|e| e.to_string())?;
     for image in images {
         stamp_image(state.clone(), &image).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+fn dejunk_image_title(path: &PathBuf) -> Result<()> {
+    let junk_pattern = Regex::new(r"_IMG_E?\d{4}")?;
+
+    let file_name = path.file_name().unwrap().to_str().unwrap();
+    if junk_pattern.is_match(file_name) {
+        let new_file_name = junk_pattern.replace(file_name, "").to_string();
+        let new_path = path.with_file_name(new_file_name);
+        if new_path.exists() {
+            return Err(anyhow!("Destination already exists: {}", new_path.display()));
+        } else {
+            std::fs::rename(&path, &new_path)?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn dejunk_image_titles(state: State<'_, AppState>) -> Result<(), String> {
+    let images = root_images(state.clone()).map_err(|e| e.to_string())?;
+    for image in images {
+        dejunk_image_title(&image).map_err(|e| e.to_string())?;
     }
 
     Ok(())
