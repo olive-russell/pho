@@ -3,6 +3,7 @@
   import { event } from "@tauri-apps/api";
   import Tags from 'svelte-tags-input';
   import { onMount } from "svelte";
+  import Media from "./media.svelte";
   
   let { selected, onClose, onNext, onPrevious, videoExtensions } = $props();
   
@@ -134,12 +135,7 @@
   <div id="left">
     <figure>
       <div>
-        {#if !videoExtensions.includes(selectedImage.getAttribute("name").split(".").pop().toLowerCase())}
-        <img class="image" src="{selectedImage.src}" alt="{selectedImage.getAttribute("name")}" />
-        {:else}
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <video class="image" src="{selectedImage.src}" alt="{selectedImage.getAttribute("name")}" autoplay loop></video>
-        {/if}
+        <Media src={selectedImage.src} alt={selectedImage.getAttribute("name")} path={selectedImage.getAttribute("path")} videoExtensions={videoExtensions} autoplayLoop=true}></Media>
       </div>
       <figcaption>{selectedImage.getAttribute("name")}</figcaption>
     </figure>
@@ -166,24 +162,14 @@
     <nav>
       {#if previousImage}
       <button onclick={onPrevious}>
-        {#if !videoExtensions.includes(previousImage.getAttribute("name").split(".").pop().toLowerCase())}
-        <img class="image" src="{previousImage.src}" alt="">
-        {:else}
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <video class="image" src="{previousImage.src}" alt="" autoplay loop muted></video>
-        {/if}
+        <Media src={previousImage.src} alt={previousImage.getAttribute("name")} path={previousImage.getAttribute("path")} videoExtensions={videoExtensions} autoplayLoop=true muted=true}></Media>
       </button>
       {:else}
       <button disabled>Previous</button>
       {/if}
       {#if nextImage}
       <button onclick={onNext}>
-        {#if !videoExtensions.includes(nextImage.getAttribute("name").split(".").pop().toLowerCase())}
-        <img class="image" src="{nextImage.src}" alt="">
-        {:else}
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <video class="image" src="{nextImage.src}" alt="" autoplay loop muted></video>
-        {/if}
+        <Media src={nextImage.src} alt={nextImage.getAttribute("name")} path={nextImage.getAttribute("path")} videoExtensions={videoExtensions} autoplayLoop=true muted=true}></Media>
       </button>
       {:else}
       <button disabled>Next</button>
@@ -247,15 +233,6 @@
     justify-content: center;
   }
   
-  figure>div>.image {
-    display: block;
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
-    height: auto;
-    border-radius: 8px;
-  }
-  
   figure>div>.image:hover {
     border-color: white;
   }
@@ -286,14 +263,6 @@
   
   nav>button:nth-child(2) {
     justify-content: right;
-  }
-  
-  nav>button>.image {
-    object-fit: contain;
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
-    height: auto;
   }
 
   nav>button::after {
