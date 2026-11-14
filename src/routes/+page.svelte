@@ -16,7 +16,7 @@
 
     if (!path) return;
 
-    await invoke("set_open_folder", { path });
+    await invoke("set_root", { path });
     await loadImages();
   }
 
