@@ -110,18 +110,10 @@
   });
 
   function onRename(oldPath, newPath) {
-    console.log("----------------------------------");
-    console.log("Old path:", oldPath);
-    console.log("New path:", newPath);
-    console.log("Matching images:", images.filter(image => image.path === oldPath));
-    console.log("Event oldPath:", JSON.stringify(oldPath));
-console.log("Image paths:", images.map(image => JSON.stringify(image.path)));
     images = images.map(path =>
         path === oldPath ? newPath : path
     );
-
-    console.log("Updated images:", images);
-}
+  }
 
 </script>
 
