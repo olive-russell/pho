@@ -443,17 +443,18 @@ fn rename_image(app: &AppHandle, path: &PathBuf, stamp: String, title: String, t
             new_path: new_path.to_string_lossy().to_string(),
         })?;
 
-        // Check for paired MOV and rename that too
-        if extension.eq_ignore_ascii_case("heic") {
-            let mov_path = path.with_extension("MOV");
+        // Check for paired MOV or HEIC and rename that too
+        if extension.eq_ignore_ascii_case("heic") || extension.eq_ignore_ascii_case("mov") {
+            let paired_extension = if extension.eq_ignore_ascii_case("heic") { "MOV" } else { "HEIC" };
+            let paired_path = path.with_extension(paired_extension);
 
-            if mov_path.exists() {
-                let new_mov_path = new_path.with_extension("MOV");
-                std::fs::rename(&mov_path, &new_mov_path)?;
+            if paired_path.exists() {
+                let new_paired_path = new_path.with_extension(paired_extension);
+                std::fs::rename(&paired_path, &new_paired_path)?;
 
                 app.emit("image-renamed", ImageRenamed {
-                    old_path: mov_path.to_string_lossy().into_owned(),
-                    new_path: new_mov_path.to_string_lossy().into_owned(),
+                    old_path: paired_path.to_string_lossy().into_owned(),
+                    new_path: new_paired_path.to_string_lossy().into_owned(),
                 })?;
             }
         }
