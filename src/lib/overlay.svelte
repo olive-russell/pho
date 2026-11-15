@@ -39,25 +39,23 @@
     
   async function extractMetadata(pathString) {
     try {
-      console.log("we've been activated");
       metadata = await invoke("extract_metadata_from_string", {pathString});
-      console.log("metadata: ", $state.snapshot(metadata));
     } catch (error) {
       console.error("Failed to extract metadata:", error);
     }
   }
 
-  // Configure date input
-  let date = $state(null);
+  // Configure stamp input
+  let stamp = $state(null);
   $effect(() => {
-    if (selected) parseDatetime(selectedImage.getAttribute("name"));
+    if (selected) parseStamp(selectedImage.getAttribute("name"));
   });
     
-  async function parseDatetime(pathString) {
+  async function parseStamp(pathString) {
     try {
-      date = await invoke("parse_datetime_from_string", {pathString});
+      stamp = await invoke("parse_stamp_from_string", {pathString});
     } catch (error) {
-      console.error("Failed to parse date:", error);
+      console.error("Failed to parse stamp:", error);
     }
   }
 
@@ -70,7 +68,7 @@
   
   async function parseTitle(pathString) {
     try {
-      title = await invoke("parse_title_from_string", {pathString});
+      title = await invoke("parse_title_from_string", {pathString}) ?? "";
     } catch (error) {
       console.error("Failed to parse title:", error);
     }
@@ -101,17 +99,41 @@
 
     const formData = new FormData(event.currentTarget);
 
+    const path = selectedImage.getAttribute("path");
+
     const action = event.submitter?.value ?? "save";
 
-    try {
-      await invoke("save_annotation", {
-        date,
-        title,
-        tags,
-        action
-      });
-    } catch (error) {
-      console.error("Failed to save annotation:", error);
+    const stampPattern = /^\d{4}-\d{2}-\d{2}-\d{4}-\d{4}$/;
+
+    if (!stampPattern.test(stamp)) {
+        console.error("Invalid stamp format");
+        const input = form.elements.namedItem("stamp");
+        input.setCustomValidity("Stamp does not meet format requirements 0000-00-00-0000-0000");
+        input.reportValidity();
+        input.addEventListener("input", () => {
+          input.setCustomValidity("");
+        });
+        return;
+    }
+
+    if (action == "save" || action == "save-next") {
+      try {
+        await invoke("save_annotation", {
+          path,
+          stamp,
+          title,
+          tags
+        });
+
+        if (action == "save-next") {
+          onNext();
+        }
+      } catch (error) {
+        console.error("Failed to save annotation:", error);
+        const formAlert = document.querySelector("#form-alert");
+        formAlert.textContent = error;
+        formAlert.classList.remove("hidden");
+      }
     }
   }
 
@@ -150,9 +172,10 @@
       <dd>{dateMediaCreated}</dd>
     </dl>
     <form id="form" onsubmit={handleSubmit}>
-    <input type="datetime" name="Date" bind:value={date} id="date" placeholder="{date}">
-      <input type="text" name="Title" bind:value={title} placeholder="{title}" id="" />
+      <p id="form-alert" class="hidden" role="alert"></p>
       <Tags bind:tags autoComplete={availableTags} onlyUnique onlyAutocomplete placeholder="Tags" minChars=0 />
+      <input type="text" name="Title" bind:value={title} placeholder="Title" id="title" />
+      <input type="text" name="Stamp" bind:value={stamp} id="stamp" placeholder="{stamp}">
       <div id="actions">
         <button type="reset">Reset</button>
         <button type="submit" name="action" value="save-next">Save and next</button>
@@ -317,13 +340,16 @@
     font-size: medium;
   }
 
-  form input{
+  form input,
+  form #form-alert {
     border: 1px solid #ccc;
     border-radius: 2px;
+    padding: 0.6em;
   }
 
-  form input {
-    padding: 0.6em;
+  form #form-alert {
+    border: none;
+    margin-bottom: 0.5em;
   }
 
   form #actions {
@@ -334,6 +360,14 @@
   form #actions button {
     flex: 1 1 100%;
     padding: 0.6em 0px;
+  }
+
+  #form-alert {
+    background-color: #ff000033;
+  }
+
+  #form-alert.hidden {
+    visibility: hidden;
   }
 
 </style>

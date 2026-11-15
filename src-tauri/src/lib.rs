@@ -27,12 +27,14 @@ pub fn run() {
             get_images_as_strings,
             load_photo_album_tags,
             parse_datetime_from_string,
+            parse_stamp_from_string,
             parse_title_from_string,
             parse_tags_from_string,
             extract_metadata_from_string,
             stamp_root_images_noblock,
             dejunk_image_titles_noblock,
-            accepted_extensions_video
+            accepted_extensions_video,
+            save_annotation
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -55,7 +57,7 @@ fn set_root(path: String, state: State<'_, AppState>) -> Result<(), String> {
 
 fn image_regex() -> Regex {
     Regex::new(
-        r"^(?<datetimeindex>(?<datetime>\d{4}-\d{2}-\d{2}-\d{4})-(?<index>\d{4}))(?:_(?<title>[^;]*))?(?:;(?<tags>.*))?$"
+        r"^(?<stamp>(?<datetime>\d{4}-\d{2}-\d{2}-\d{4})-(?<index>\d{4}))(?:_(?<title>[^;]*))?(?:;(?<tags>.*))?$"
     ).unwrap()
 }
 
@@ -201,9 +203,9 @@ fn parse_datetime(path: &PathBuf) -> Option<String> {
     Some(date.as_str().to_string())
 }
 
-fn parse_datetime_and_index(path: &PathBuf) -> Option<String> {
+fn parse_stamp(path: &PathBuf) -> Option<String> {
     let file_stem = path.file_stem()?.to_str()?;
-    let datetime_and_index = image_regex().captures(file_stem)?.name("datetimeindex")?;
+    let datetime_and_index = image_regex().captures(file_stem)?.name("stamp")?;
     Some(datetime_and_index.as_str().to_string())
 }
 
@@ -223,6 +225,11 @@ fn parse_tags(path: &PathBuf) -> Option<Vec<String>> {
 #[tauri::command]
 fn parse_datetime_from_string(path_string: String) -> Option<String> {
     parse_datetime(&PathBuf::from(path_string))
+}
+
+#[tauri::command]
+fn parse_stamp_from_string(path_string: String) -> Option<String> {
+    parse_stamp(&PathBuf::from(path_string))
 }
 
 #[tauri::command]
@@ -277,14 +284,14 @@ fn extract_metadata(path: &Path) -> Result<ImageMetadata> {
     Ok(metadata)
 }
 
-fn all_datetime_index(root: &PathBuf) -> Result<HashSet<String>> {
+fn all_stamp(root: &PathBuf) -> Result<HashSet<String>> {
     let all_images = all_images(root)?;
-    let all_datetime_index: Vec<String> = all_images.iter().filter_map(|path| parse_datetime_and_index(&path)).collect();
+    let all_stamp: Vec<String> = all_images.iter().filter_map(|path| parse_stamp(&path)).collect();
 
-    Ok(HashSet::from_iter(all_datetime_index))
+    Ok(HashSet::from_iter(all_stamp))
 }
 
-fn stamp_image(all_datetime_index: &mut HashSet<String>, path: &PathBuf) -> Result<()> {
+fn stamp_image(all_stamp: &mut HashSet<String>, path: &PathBuf) -> Result<()> {
     println!("  Skips");
     // Validate extension
     if !accept_extension(path)? {
@@ -297,7 +304,7 @@ fn stamp_image(all_datetime_index: &mut HashSet<String>, path: &PathBuf) -> Resu
     }
 
     // Skip if already stamped
-    if parse_datetime_and_index(path).is_some() {
+    if parse_stamp(path).is_some() {
         return Ok(());
     }
 
@@ -326,11 +333,11 @@ fn stamp_image(all_datetime_index: &mut HashSet<String>, path: &PathBuf) -> Resu
     println!("  Index");
     println!("    Get all");
     println!("    Find available");
-    let index = (1..=9999).find(|index| !all_datetime_index.contains(&format!("{date}-{index:04}")))
+    let index = (1..=9999).find(|index| !all_stamp.contains(&format!("{date}-{index:04}")))
         .ok_or_else(|| anyhow!("No available four-digit index for {date}"))?;
 
     // Reserve index as taken
-    all_datetime_index.insert(format!("{date}-{index:04}"));
+    all_stamp.insert(format!("{date}-{index:04}"));
 
     // Compute new path
     println!("  Assemble");
@@ -362,10 +369,10 @@ fn stamp_image(all_datetime_index: &mut HashSet<String>, path: &PathBuf) -> Resu
 
 fn stamp_root_images(root: &PathBuf) -> Result<()> {
     let images = root_images(&root)?;
-    let mut all_datetime_index = all_datetime_index(&root)?;
+    let mut all_stamp = all_stamp(&root)?;
     for image in images {
         println!("Stamping {}", image.display());
-        stamp_image(&mut all_datetime_index, &image)?;
+        stamp_image(&mut all_stamp, &image)?;
     }
 
     Ok(())
@@ -413,4 +420,25 @@ async fn dejunk_image_titles_noblock(state: State<'_, AppState>) -> Result<(), S
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())
+}
+
+fn rename_image(path: &PathBuf, stamp: String, title: String, tags: Vec<String>) -> Result<()> {
+    // println!("Hello {stamp} {title} {}", tags.join(","));
+    let title_substring = if title.is_empty() {"".to_string()} else {format!("_{}", title)};
+    let tag_substring = if tags.is_empty() {"".to_string()} else {format!(";{}", tags.join(";"))};
+    let extension = path.extension().unwrap().to_string_lossy().into_owned();
+    let new_name = format!("{stamp}{title_substring}{tag_substring}.{extension}");
+    let new_path = path.with_file_name(new_name);
+    if !path.eq(&new_path) {
+        println!("{}",new_path.display());
+    } else {
+        return Err(anyhow!("Failed to rename file"));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn save_annotation(path: String, stamp: String, title: String, tags: Vec<String>) -> Result<(), String> {
+    rename_image(&PathBuf::from(path), stamp, title, tags).map_err(|e| e.to_string())?;
+    Ok(())
 }
