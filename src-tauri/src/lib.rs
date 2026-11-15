@@ -375,11 +375,20 @@ fn stamp_image(all_stamp: &mut HashSet<String>, path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn stamp_root_images(root: &PathBuf) -> Result<()> {
+fn stamp_root_images(app: &AppHandle, root: &PathBuf) -> Result<()> {
+    app.emit(
+        "processing-update",
+        "Gathering used stamps"
+    )?;
     let images = root_images(&root)?;
     let mut all_stamp = all_stamp(&root)?;
     for image in images {
         println!("Stamping {}", image.display());
+        app.emit(
+            "processing-update",
+            image.file_name().unwrap().to_string_lossy().to_string()
+        )?;
+
         stamp_image(&mut all_stamp, &image)?;
     }
 
@@ -387,9 +396,9 @@ fn stamp_root_images(root: &PathBuf) -> Result<()> {
 }
 
 #[tauri::command]
-async fn stamp_root_images_noblock(state: State<'_, AppState>) -> Result<(), String> {
+async fn stamp_root_images_noblock(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let root = root_path(state).map_err(|e| e.to_string())?;
-    tauri::async_runtime::spawn_blocking(move || {stamp_root_images(&root)})
+    tauri::async_runtime::spawn_blocking(move || {stamp_root_images(&app, &root)})
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())

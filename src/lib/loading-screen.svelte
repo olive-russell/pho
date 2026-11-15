@@ -1,11 +1,14 @@
 <script>
-  let { loading } = $props();
+    import Media from "./media.svelte";
+
+  let { loading, progress } = $props();
 </script>
 
 {#if loading}
 <div class="loading-overlay">
     <div class="loading-box">
         Processing images...
+        <p>{progress}</p>
     </div>
 </div>
 {/if}

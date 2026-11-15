@@ -41,6 +41,7 @@
   async function stamp() {
     if (images.length != 0) {
       loading = true;
+      progress = "";
       try {
         await invoke("stamp_root_images_noblock");
         await loadImages();
@@ -86,8 +87,9 @@
 
   onMount(async () => {
       videoExtensions = await invoke("accepted_extensions_video");
-  });
-
+    });
+    
+  let progress = $state("");
 
   onMount(() => {
     let unlisten;
@@ -98,6 +100,13 @@
 
         // Update your image state here
         onRename(oldPath, newPath);
+    }).then(fn => {
+        if (cancelled) fn();
+        else unlisten = fn;
+    });
+
+    listen("processing-update", (event) => {
+        progress = event.payload;
     }).then(fn => {
         if (cancelled) fn();
         else unlisten = fn;
@@ -122,7 +131,7 @@
   {#key selected}  
   <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling} onSuccess={onSuccess} videoExtensions={videoExtensions}/>
   {/key}
-  <LoadingScreen loading={loading}></LoadingScreen>
+  <LoadingScreen loading={loading} progress={progress}></LoadingScreen>
   {#key success}
   <SuccessToast success={success}></SuccessToast>
   {/key}
