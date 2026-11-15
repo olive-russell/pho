@@ -70,11 +70,20 @@
   }
   
   let success = $state(0);
-  async function onSuccess() {
+  async function onSuccess(renamed, renamedImage, newPath) {
+    // Update changed image
+    onRename(renamedImage.getAttribute("path"), newPath);
+    
+    // Display success spop-up
     success += 1;
     setTimeout(() => {
       success -= 1;
     }, 2000);
+  }
+
+  async function onRename(oldPath, newPath) {
+    renamed.querySelector("figcaption").textContent = newPath.split("/").pop();
+    console.log("hello", newPath);
   }
 
   let videoExtensions = $state([]);

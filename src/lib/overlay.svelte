@@ -119,19 +119,24 @@
     const formAlert = document.querySelector("#form-alert");
     if (action == "save" || action == "save-next") {
       try {
-        await invoke("save_annotation", {
+        const newPath = await invoke("save_annotation", {
           path,
           stamp,
           title,
           tags
         });
 
+        // Run success function from parent (success pop-up, rename in grid)
+        onSuccess(selected, selectedImage, newPath);
+
+        // Remove error dialog
+        formAlert.textContent = "";
+        formAlert.classList.add("hidden");
+
+        // Navigate to next image
         if (action == "save-next") {
           onNext();
         }
-        onSuccess();
-        formAlert.textContent = "";
-        formAlert.classList.add("hidden");
       } catch (error) {
         console.error("Failed to save annotation:", error);
         formAlert.textContent = error;

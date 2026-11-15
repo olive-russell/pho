@@ -422,21 +422,21 @@ async fn dejunk_image_titles_noblock(state: State<'_, AppState>) -> Result<(), S
         .map_err(|e| e.to_string())
 }
 
-fn rename_image(path: &PathBuf, stamp: String, title: String, tags: Vec<String>) -> Result<()> {
+fn rename_image(path: &PathBuf, stamp: String, title: String, tags: Vec<String>) -> Result<PathBuf> {
     let title_substring = if title.is_empty() {"".to_string()} else {format!("_{}", title)};
     let tag_substring = if tags.is_empty() {"".to_string()} else {format!(";{}", tags.join(";"))};
     let extension = path.extension().unwrap().to_string_lossy().into_owned();
     let new_name = format!("{stamp}{title_substring}{tag_substring}.{extension}");
     let new_path = path.with_file_name(new_name);
     if !path.eq(&new_path) {
-        std::fs::rename(path, new_path).expect("Failed to rename image");
+        std::fs::rename(path, &new_path).expect("Failed to rename image");
     } 
 
-    Ok(())
+    Ok(new_path)
 }
 
 #[tauri::command]
-fn save_annotation(path: String, stamp: String, title: String, tags: Vec<String>) -> Result<(), String> {
-    rename_image(&PathBuf::from(path), stamp, title, tags).map_err(|e| e.to_string())?;
-    Ok(())
+fn save_annotation(path: String, stamp: String, title: String, tags: Vec<String>) -> Result<String, String> {
+    let new_path = rename_image(&PathBuf::from(path), stamp, title, tags).map_err(|e| e.to_string())?;
+    Ok(new_path.to_string_lossy().into_owned())
 }
