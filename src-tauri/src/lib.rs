@@ -423,17 +423,15 @@ async fn dejunk_image_titles_noblock(state: State<'_, AppState>) -> Result<(), S
 }
 
 fn rename_image(path: &PathBuf, stamp: String, title: String, tags: Vec<String>) -> Result<()> {
-    // println!("Hello {stamp} {title} {}", tags.join(","));
     let title_substring = if title.is_empty() {"".to_string()} else {format!("_{}", title)};
     let tag_substring = if tags.is_empty() {"".to_string()} else {format!(";{}", tags.join(";"))};
     let extension = path.extension().unwrap().to_string_lossy().into_owned();
     let new_name = format!("{stamp}{title_substring}{tag_substring}.{extension}");
     let new_path = path.with_file_name(new_name);
     if !path.eq(&new_path) {
-        println!("{}",new_path.display());
-    } else {
-        return Err(anyhow!("Failed to rename file"));
-    }
+        std::fs::rename(path, new_path).expect("Failed to rename image");
+    } 
+
     Ok(())
 }
 

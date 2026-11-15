@@ -35,6 +35,4 @@
         pointer-events: none;
         animation: disappear 2s linear forwards;
     }
-
-    
 </style>
