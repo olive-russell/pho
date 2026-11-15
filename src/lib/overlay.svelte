@@ -5,7 +5,7 @@
   import { onMount } from "svelte";
   import Media from "./media.svelte";
   
-  let { selected, onClose, onNext, onPrevious, videoExtensions } = $props();
+  let { selected, onClose, onNext, onPrevious, onSuccess, showSuccess, videoExtensions } = $props();
   
   // Handle dialog state and actions
   let dialog = $state(null);
@@ -116,6 +116,7 @@
         return;
     }
 
+    const formAlert = document.querySelector("#form-alert");
     if (action == "save" || action == "save-next") {
       try {
         await invoke("save_annotation", {
@@ -128,9 +129,11 @@
         if (action == "save-next") {
           onNext();
         }
+        onSuccess();
+        formAlert.textContent = "";
+        formAlert.classList.add("hidden");
       } catch (error) {
         console.error("Failed to save annotation:", error);
-        const formAlert = document.querySelector("#form-alert");
         formAlert.textContent = error;
         formAlert.classList.remove("hidden");
       }

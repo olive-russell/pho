@@ -5,6 +5,7 @@
   import Overlay from "$lib/overlay.svelte";
   import ThumbnailGrid from "$lib/thumbnail-grid.svelte";
   import LoadingScreen from "$lib/loading-screen.svelte";
+  import SuccessToast from "$lib/success-toast.svelte";
   import "./+layout.css"
 
   let selected = $state(null);
@@ -67,6 +68,14 @@
       console.error("Cannot dejunk without images");
     }
   }
+  
+  let success = $state(0);
+  async function onSuccess() {
+    success += 1;
+    setTimeout(() => {
+      success -= 1;
+    }, 2000);
+  }
 
   let videoExtensions = $state([]);
 
@@ -79,9 +88,12 @@
 <main>
   <ThumbnailGrid selectElement={(element) => selected = element} images={images} videoExtensions={videoExtensions}/>
   {#key selected}  
-  <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling} videoExtensions={videoExtensions}/>
+  <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling} onSuccess={onSuccess} videoExtensions={videoExtensions}/>
   {/key}
   <LoadingScreen loading={loading}></LoadingScreen>
+  {#key success}
+  <SuccessToast success={success}></SuccessToast>
+  {/key}
   <button onclick={openFolder} disabled={loading}>open folder</button>
   <button onclick={stamp} disabled={loading || !folderOpen}>stamp images</button>
   <button onclick={dejunk} disabled={loading || !folderOpen}>dejunk image titles</button>
