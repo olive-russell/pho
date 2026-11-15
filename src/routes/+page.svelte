@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { open } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
+  import { listen } from "@tauri-apps/api/event";
   import Overlay from "$lib/overlay.svelte";
   import ThumbnailGrid from "$lib/thumbnail-grid.svelte";
   import LoadingScreen from "$lib/loading-screen.svelte";
@@ -73,7 +74,7 @@
   async function onSuccess(renamed, renamedImage, newPath) {
     // Update changed image
     onRename(renamedImage.getAttribute("path"), newPath);
-    
+
     // Display success spop-up
     success += 1;
     setTimeout(() => {
@@ -81,16 +82,46 @@
     }, 2000);
   }
 
-  async function onRename(oldPath, newPath) {
-    renamed.querySelector("figcaption").textContent = newPath.split("/").pop();
-    console.log("hello", newPath);
-  }
-
   let videoExtensions = $state([]);
 
   onMount(async () => {
       videoExtensions = await invoke("accepted_extensions_video");
   });
+
+
+  onMount(() => {
+    let unlisten;
+    let cancelled = false;
+
+    listen("image-renamed", (event) => {
+        const { oldPath, newPath } = event.payload;
+
+        // Update your image state here
+        onRename(oldPath, newPath);
+    }).then(fn => {
+        if (cancelled) fn();
+        else unlisten = fn;
+    });
+
+    return () => {
+        cancelled = true;
+        unlisten?.();
+    };
+  });
+
+  function onRename(oldPath, newPath) {
+    console.log("----------------------------------");
+    console.log("Old path:", oldPath);
+    console.log("New path:", newPath);
+    console.log("Matching images:", images.filter(image => image.path === oldPath));
+    console.log("Event oldPath:", JSON.stringify(oldPath));
+console.log("Image paths:", images.map(image => JSON.stringify(image.path)));
+    images = images.map(path =>
+        path === oldPath ? newPath : path
+    );
+
+    console.log("Updated images:", images);
+}
 
 </script>
 

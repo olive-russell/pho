@@ -10,10 +10,18 @@ use nom_exif::{ExifDateTime};
 use chrono::{DateTime, Utc};
 use std::fs;
 use serde::Serialize;
+use tauri::{AppHandle, Emitter};
 
 #[derive(Default)]
 struct AppState {
     root: Mutex<Option<PathBuf>>,
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImageRenamed {
+    old_path: String,
+    new_path: String,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -422,7 +430,7 @@ async fn dejunk_image_titles_noblock(state: State<'_, AppState>) -> Result<(), S
         .map_err(|e| e.to_string())
 }
 
-fn rename_image(path: &PathBuf, stamp: String, title: String, tags: Vec<String>) -> Result<PathBuf> {
+fn rename_image(app: &AppHandle, path: &PathBuf, stamp: String, title: String, tags: Vec<String>) -> Result<PathBuf> {
     let title_substring = if title.is_empty() {"".to_string()} else {format!("_{}", title)};
     let tag_substring = if tags.is_empty() {"".to_string()} else {format!(";{}", tags.join(";"))};
     let extension = path.extension().unwrap().to_string_lossy().into_owned();
@@ -430,13 +438,17 @@ fn rename_image(path: &PathBuf, stamp: String, title: String, tags: Vec<String>)
     let new_path = path.with_file_name(new_name);
     if !path.eq(&new_path) {
         std::fs::rename(path, &new_path).expect("Failed to rename image");
+        app.emit("image-renamed", ImageRenamed {
+            old_path: path.to_string_lossy().to_string(),
+            new_path: new_path.to_string_lossy().to_string(),
+        })?;
     } 
 
     Ok(new_path)
 }
 
 #[tauri::command]
-fn save_annotation(path: String, stamp: String, title: String, tags: Vec<String>) -> Result<String, String> {
-    let new_path = rename_image(&PathBuf::from(path), stamp, title, tags).map_err(|e| e.to_string())?;
+fn save_annotation(app: AppHandle, path: String, stamp: String, title: String, tags: Vec<String>) -> Result<String, String> {
+    let new_path = rename_image(&app, &PathBuf::from(path), stamp, title, tags).map_err(|e| e.to_string())?;
     Ok(new_path.to_string_lossy().into_owned())
 }
