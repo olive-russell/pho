@@ -8,6 +8,7 @@
   import "./+layout.css"
 
   let selected = $state(null);
+  let folderOpen = $state(false);
 
   async function openFolder() {
     const path = await open({
@@ -20,6 +21,7 @@
 
     await invoke("set_root", { path });
     await loadImages();
+    folderOpen = true;
   }
 
   let images = $state([]);
@@ -55,7 +57,7 @@
     if (images.length != 0) {
       loading = true;
       try {
-        await invoke("dejunk_image_titles");
+        await invoke("dejunk_image_titles_noblock");
         await loadImages();
       } catch (error) {
         console.error("Failed to dejunk images:", error);
@@ -82,8 +84,8 @@
   {/key}
   <LoadingScreen loading={loading}></LoadingScreen>
   <button onclick={openFolder} disabled={loading}>open folder</button>
-  <button onclick={stamp} disabled={loading}>stamp images</button>
-  <button onclick={dejunk} disabled={loading}>dejunk image titles</button>
+  <button onclick={stamp} disabled={loading || !folderOpen}>stamp images</button>
+  <button onclick={dejunk} disabled={loading || !folderOpen}>dejunk image titles</button>
 </main>
 
 <style>

@@ -31,7 +31,7 @@ pub fn run() {
             parse_tags_from_string,
             extract_metadata_from_string,
             stamp_root_images_noblock,
-            dejunk_image_titles,
+            dejunk_image_titles_noblock,
             accepted_extensions_video
         ])
         .run(tauri::generate_context!())
@@ -397,11 +397,20 @@ fn dejunk_image_title(path: &PathBuf) -> Result<()> {
 }
 
 #[tauri::command]
-fn dejunk_image_titles(state: State<'_, AppState>) -> Result<(), String> {
-    let images = root_images(&root_path(state).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+fn dejunk_image_titles(root: &PathBuf) -> Result<(), String> {
+    let images = root_images(&root).map_err(|e| e.to_string())?;
     for image in images {
         dejunk_image_title(&image).map_err(|e| e.to_string())?;
     }
 
     Ok(())
+}
+
+#[tauri::command]
+async fn dejunk_image_titles_noblock(state: State<'_, AppState>) -> Result<(), String> {
+    let root = root_path(state).map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {dejunk_image_titles(&root)})
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
