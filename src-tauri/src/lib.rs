@@ -442,7 +442,22 @@ fn rename_image(app: &AppHandle, path: &PathBuf, stamp: String, title: String, t
             old_path: path.to_string_lossy().to_string(),
             new_path: new_path.to_string_lossy().to_string(),
         })?;
-    } 
+
+        // Check for paired MOV and rename that too
+        if extension.eq_ignore_ascii_case("heic") {
+            let mov_path = path.with_extension("MOV");
+
+            if mov_path.exists() {
+                let new_mov_path = new_path.with_extension("MOV");
+                std::fs::rename(&mov_path, &new_mov_path)?;
+
+                app.emit("image-renamed", ImageRenamed {
+                    old_path: mov_path.to_string_lossy().into_owned(),
+                    new_path: new_mov_path.to_string_lossy().into_owned(),
+                })?;
+            }
+        }
+    }
 
     Ok(new_path)
 }
