@@ -77,7 +77,9 @@
 
 <main>
   <ThumbnailGrid selectElement={(element) => selected = element} images={images} videoExtensions={videoExtensions}/>
+  {#key selected}  
   <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling} videoExtensions={videoExtensions}/>
+  {/key}
   <LoadingScreen loading={loading}></LoadingScreen>
   <button onclick={openFolder} disabled={loading}>open folder</button>
   <button onclick={stamp} disabled={loading}>stamp images</button>

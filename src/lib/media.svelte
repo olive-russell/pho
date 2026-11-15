@@ -1,12 +1,13 @@
 <script>
   let { src, alt, path, videoExtensions, autoplayLoop, muted, clickable = false } = $props();
+
+  let loaded = $state(false);
 </script>
-{console.log({ path, clickable })}
 {#if !videoExtensions.includes(path.split(".").pop().toLowerCase())}
 <img class="image" src="{src}" alt="{alt}" path={path} class:clickable />
 {:else}
 <!-- svelte-ignore a11y_media_has_caption -->
-<video class="image" src="{src}" alt="{alt}" path={path} autoplay={autoplayLoop} loop={autoplayLoop} muted={muted} class:clickable></video>
+<video class="image" src="{src}" alt="{alt}" path={path} autoplay={autoplayLoop} loop={autoplayLoop} muted={muted} class:clickable onloadeddata={() => {console.log("Video frame loaded", src); loaded = true}} class:loaded></video>
 {/if}
 
 <style>
@@ -29,5 +30,9 @@
   .image.clickable:hover{
     border-color: #396cd8;
     transition: 0.1s;
+  }
+
+  video.image:not(.loaded) {
+    visibility: hidden;
   }
 </style>
