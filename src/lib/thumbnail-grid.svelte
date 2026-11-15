@@ -1,5 +1,6 @@
 <script>
     import { convertFileSrc } from "@tauri-apps/api/core";
+    import Media from "./media.svelte";
     let { selectElement, images, videoExtensions } = $props();
 </script>
 
@@ -7,12 +8,7 @@
     {#each images as image}
     <button class="image-tile" aria-label="Open image" onclick={(event) => selectElement(event.currentTarget)}>
       <figure>
-        {#if !videoExtensions.includes(image.split(".").pop().toLowerCase())}
-        <img class="image" src="{convertFileSrc(image)}" alt="{image.split("/").pop()}" name="{image.split("/").pop()}" path="{image}"/>
-        {:else}
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <video class="image" src="{convertFileSrc(image)}" alt="{image.split("/").pop()}" name="{image.split("/").pop()}" path="{image}"></video>
-        {/if}
+        <Media src={convertFileSrc(image)} alt={image.split("/").pop()} path={image} videoExtensions={videoExtensions} clickable=true></Media>
         <figcaption>{image.split("/").pop()}</figcaption>
       </figure>
     </button>
@@ -39,10 +35,6 @@
 
   #image-list>button:focus {
     outline: none;
-  }
-
-  #image-list:focus-within .image:hover {
-    border-color: white;
   }
   
   #image-list>button>figure {
