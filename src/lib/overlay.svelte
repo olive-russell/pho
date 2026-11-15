@@ -196,6 +196,7 @@
   
   dialog {
     display: flex;
+    overflow: hidden;
   }
 
   #left,
@@ -233,10 +234,6 @@
     justify-content: center;
   }
   
-  figure>div>.image:hover {
-    border-color: white;
-  }
-  
   figure>figcaption {
     margin-top: 1em;
   }
@@ -246,16 +243,13 @@
     flex: 0 0 20%;
     flex-direction: row;
     justify-content: center;
-    gap: 1em;
     min-height: 0;
-    /* align-items: stretch */
   }
   
   nav>button {
     position: relative;
     display: flex;
     align-items: center;
-    margin: 1em;
     width: 50%;
     background: none;
     border: none;
@@ -284,13 +278,15 @@
   }
 
   #right {
-    justify-content: space-around;
+    justify-content: space-between;
     font-size: large;
+    padding: 1em;
+    overflow: scroll;
   }
-
+  
   dl {
     text-align: left;
-    padding: 1em;
+    padding: 0em;
   }
 
   dt, dd {
@@ -311,7 +307,6 @@
   form {
     display: flex;
     flex-direction: column;
-    /* align-items: center; */
   }
 
   form * {
@@ -320,11 +315,9 @@
     box-sizing: border-box;
     margin: 5px 0px;
     font-size: medium;
-    /* border-radius: 5px; */
   }
 
   form input{
-    /* border-radius: 1px; */
     border: 1px solid #ccc;
     border-radius: 2px;
   }
@@ -341,7 +334,6 @@
   form #actions button {
     flex: 1 1 100%;
     padding: 0.6em 0px;
-    /* border-radius: 2px; */
   }
 
 </style>
