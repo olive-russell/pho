@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use walkdir::WalkDir;
-use std::{collections::{HashMap, HashSet}, path::PathBuf, sync::Mutex};
+use std::{cmp::Ordering, collections::{HashMap, HashSet}, path::PathBuf, sync::Mutex};
 use tauri::{State};
 use anyhow::{Result, anyhow};
 use std::path::Path;
@@ -26,6 +26,8 @@ struct ImageRenamed {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    dotenvy::dotenv().ok();
+
     tauri::Builder::default()
         .manage(AppState::default())
         .plugin(tauri_plugin_dialog::init())
@@ -201,8 +203,29 @@ fn get_photo_album_tags() -> Result<Vec<String>> {
 
     // Sort by usage and return tag list
     let mut all_tags: Vec<_> = all_tags_map.into_iter().collect();
-    all_tags.sort_by(|a, b| b.1.cmp(&a.1));
+    all_tags.sort_by(|a, b| cmp_tag(a, b));
     Ok(all_tags.into_iter().map(|(tag, _)| tag).collect())
+}
+
+fn cmp_tag(a: &(String, i32), b: &(String, i32)) -> Ordering {
+    let new_tag_name = std::env::var("NEW_TAG_NAME").ok();
+    let tag_name = std::env::var("TAG_NAME").ok();
+    if let Some(new_tag_name) = new_tag_name {
+        if a.0 == new_tag_name {
+            return Ordering::Less
+        } else if b.0 == new_tag_name {
+            return Ordering::Greater
+        }
+    }
+    if let Some(tag_name) = tag_name {
+        if a.0 == tag_name {
+            return Ordering::Greater
+        } else if b.0 == tag_name {
+            return Ordering::Less
+        }
+    }
+    
+    b.1.cmp(&a.1)
 }
 
 fn parse_datetime(path: &PathBuf) -> Option<String> {

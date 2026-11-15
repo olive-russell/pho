@@ -5,7 +5,7 @@
   import { onMount } from "svelte";
   import Media from "./media.svelte";
   
-  let { selected, onClose, onNext, onPrevious, onSuccess, showSuccess, videoExtensions } = $props();
+  let { selected, onClose, onNext, onPrevious, onSuccess, showSuccess, videoExtensions, availableTags } = $props();
   
   // Handle dialog state and actions
   let dialog = $state(null);
@@ -75,7 +75,6 @@
   }
 
   // Configure tag input
-  let availableTags = $state(['Olive','F']);
   let tags = $state([]);
   $effect(() => {
     if (selected) parseTags(selectedImage.getAttribute("name"));
@@ -144,20 +143,6 @@
       }
     }
   }
-
-  async function loadAvailableTags() {
-    try {
-        const result = await invoke("load_photo_album_tags");
-        availableTags = Array.isArray(result) ? result : [];
-    } catch (error) {
-        console.error("Failed to load existing tag list:", error);
-        availableTags = [];
-    }
-  }
-
-  onMount(() => {
-    loadAvailableTags();
-  });
 </script>
 
 {#if selected}

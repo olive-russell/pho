@@ -88,6 +88,22 @@
   onMount(async () => {
       videoExtensions = await invoke("accepted_extensions_video");
     });
+
+  let availableTags = $state(['Olive','F']);
+
+  onMount(() => {
+    loadAvailableTags();
+  });
+
+  async function loadAvailableTags() {
+    try {
+        const result = await invoke("load_photo_album_tags");
+        availableTags = Array.isArray(result) ? result : [];
+    } catch (error) {
+        console.error("Failed to load existing tag list:", error);
+        availableTags = [];
+    }
+  }
     
   let progress = $state("");
 
@@ -129,7 +145,7 @@
 <main>
   <ThumbnailGrid selectElement={(element) => selected = element} images={images} videoExtensions={videoExtensions}/>
   {#key selected}  
-  <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling} onSuccess={onSuccess} videoExtensions={videoExtensions}/>
+  <Overlay selected={selected} onClose={() => selected = null} onNext={() => selected = selected?.nextElementSibling} onPrevious={() => selected = selected?.previousElementSibling} onSuccess={onSuccess} videoExtensions={videoExtensions} availableTags={availableTags}/>
   {/key}
   <LoadingScreen loading={loading} progress={progress}></LoadingScreen>
   {#key success}
