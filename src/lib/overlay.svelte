@@ -135,7 +135,7 @@
   <div id="left">
     <figure>
       <div>
-        <Media src={selectedImage.src} alt={selectedImage.getAttribute("name")} path={selectedImage.getAttribute("path")} videoExtensions={videoExtensions} autoplayLoop=true></Media>
+        <Media src={selectedImage.src} alt={selectedImage.getAttribute("name")} name={selectedImage.getAttribute("name")} path={selectedImage.getAttribute("path")} videoExtensions={videoExtensions} autoplayLoop=true></Media>
       </div>
       <figcaption>{selectedImage.getAttribute("name")}</figcaption>
     </figure>
@@ -162,14 +162,14 @@
     <nav>
       {#if previousImage}
       <button onclick={onPrevious}>
-        <Media src={previousImage.src} alt={previousImage.getAttribute("name")} path={previousImage.getAttribute("path")} videoExtensions={videoExtensions} autoplayLoop=true muted=true clickable=true></Media>
+        <Media src={previousImage.src} alt={previousImage.getAttribute("name")} name={previousImage.getAttribute("name")} path={previousImage.getAttribute("path")} videoExtensions={videoExtensions} autoplayLoop=true muted=true clickable=true></Media>
       </button>
       {:else}
       <button disabled>Previous</button>
       {/if}
       {#if nextImage}
       <button onclick={onNext}>
-        <Media src={nextImage.src} alt={nextImage.getAttribute("name")} path={nextImage.getAttribute("path")} videoExtensions={videoExtensions} autoplayLoop=true muted=true clickable=true></Media>
+        <Media src={nextImage.src} alt={nextImage.getAttribute("name")} name={nextImage.getAttribute("name")} path={nextImage.getAttribute("path")} videoExtensions={videoExtensions} autoplayLoop=true muted=true clickable=true></Media>
       </button>
       {:else}
       <button disabled>Next</button>

@@ -8,7 +8,7 @@
     {#each images as image}
     <button class="image-tile" aria-label="Open image" onclick={(event) => selectElement(event.currentTarget)}>
       <figure>
-        <Media src={convertFileSrc(image)} alt={image.split("/").pop()} path={image} videoExtensions={videoExtensions} clickable=true></Media>
+        <Media src={convertFileSrc(image)} alt={image.split("/").pop()} name={image.split("/").pop()} path={image} videoExtensions={videoExtensions} clickable=true></Media>
         <figcaption>{image.split("/").pop()}</figcaption>
       </figure>
     </button>

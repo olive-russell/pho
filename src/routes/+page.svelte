@@ -27,7 +27,6 @@
   let images = $state([]);
 
   async function loadImages() {
-    console.log("Load images called")
     try {
       images = await invoke("get_images_as_strings");
     } catch (error) {

@@ -1,13 +1,13 @@
 <script>
-  let { src, alt, path, videoExtensions, autoplayLoop, muted, clickable = false } = $props();
+  let { src, alt, path, name, videoExtensions, autoplayLoop, muted, clickable = false } = $props();
 
   let loaded = $state(false);
 </script>
 {#if !videoExtensions.includes(path.split(".").pop().toLowerCase())}
-<img class="image" src="{src}" alt="{alt}" path={path} class:clickable />
+<img class="image" src="{src}" alt="{alt}" name={name} path={path} class:clickable />
 {:else}
 <!-- svelte-ignore a11y_media_has_caption -->
-<video class="image" src="{src}" alt="{alt}" path={path} autoplay={autoplayLoop} loop={autoplayLoop} muted={muted} class:clickable onloadeddata={() => {console.log("Video frame loaded", src); loaded = true}} class:loaded></video>
+<video class="image" src="{src}" alt="{alt}" name={name} path={path} autoplay={autoplayLoop} loop={autoplayLoop} muted={muted} class:clickable onloadeddata={() => loaded = true} class:loaded></video>
 {/if}
 
 <style>
