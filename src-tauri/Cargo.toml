@@ -38,3 +38,9 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[patch.crates-io]
+wry = {
+    git = "https://github.com/JJJ/wry",
+    rev = "a1e9973c44f1e6ccb6a1f17a16ded28be26d3ff1"
+}
