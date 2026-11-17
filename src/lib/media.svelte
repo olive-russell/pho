@@ -4,7 +4,7 @@
   let loaded = $state(false);
 </script>
 {#if !videoExtensions.includes(path.split(".").pop().toLowerCase())}
-<img class="image" src="{src}" alt="{alt}" name={name} path={path} class:clickable />
+<img class="image" src="{src}" alt="{alt}" name={name} path={path} class:clickable loading="lazy" />
 {:else}
 <!-- svelte-ignore a11y_media_has_caption -->
 <video class="image" src="{src}" alt="{alt}" name={name} path={path} autoplay={autoplayLoop} loop={autoplayLoop} muted={muted} class:clickable onloadeddata={() => loaded = true} class:loaded></video>
