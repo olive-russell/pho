@@ -20,9 +20,9 @@
     "security": {
       "assetProtocol": {
         "enable": true,
-        "scope": []
+        "scope": ["**"]
       },
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost; media-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {
